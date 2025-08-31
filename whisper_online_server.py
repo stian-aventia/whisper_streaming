@@ -149,9 +149,9 @@ class ServerProcessor:
             if self.last_end is not None:
                 beg = max(beg, self.last_end)
 
-            # FIX: Bruk display_end som last_end for kontinuitet
+            # REVERSER: Tilbake til original
             display_end = end + self.display_linger_sec
-            self.last_end = display_end  # ENDRING: Bruk display_end, ikke end
+            self.last_end = end   # Bruk original end, ikke display_end
             
             beg_webvtt = self.timedelta_to_webvtt(str(datetime.timedelta(seconds=beg)))
             end_webvtt = self.timedelta_to_webvtt(str(datetime.timedelta(seconds=display_end)))

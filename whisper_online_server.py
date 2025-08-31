@@ -114,10 +114,11 @@ class ServerProcessor:
         self.connection = c
         self.online_asr_proc = online_asr_proc
         self.min_chunk = min_chunk
-
         self.last_end = None
-
         self.is_first = True
+        
+        # LEGG TIL: Display linger for å dekke gaps under kontinuerlig tale
+        self.display_linger_sec = 3.0
 
     def receive_audio_chunk(self):
         global running
@@ -143,29 +144,26 @@ class ServerProcessor:
         return np.concatenate(out)
 
     def format_output_transcript(self,o):
-        # This function differs from whisper_online.output_transcript in the following:
-        # succeeding [beg,end] intervals are not overlapping because ELITR protocol (implemented in online-text-flow events) requires it.
-        # Therefore, beg, is max of previous end and current beg outputed by Whisper.
-        # Usually it differs negligibly, by appx 20 ms.
-
         if o[0] is not None:
             beg, end = o[0],o[1]
             if self.last_end is not None:
                 beg = max(beg, self.last_end)
 
-            self.last_end = end
+            # FIX: Bruk display_end som last_end for kontinuitet
+            display_end = end + self.display_linger_sec
+            self.last_end = display_end  # ENDRING: Bruk display_end, ikke end
+            
             beg_webvtt = self.timedelta_to_webvtt(str(datetime.timedelta(seconds=beg)))
-            end_webvtt = self.timedelta_to_webvtt(str(datetime.timedelta(seconds=end)))
+            end_webvtt = self.timedelta_to_webvtt(str(datetime.timedelta(seconds=display_end)))
             logger.info("%s -> %s %s" % (beg_webvtt, end_webvtt, o[2].strip()))
 
             data = {}
             if(report_language != None and report_language != 'none'):
                 data['language'] = "en"
             data['start'] = "%1.3f" % datetime.timedelta(seconds=beg).total_seconds()
-            data['end'] = "%1.3f" % datetime.timedelta(seconds=end).total_seconds()
+            data['end'] = "%1.3f" % datetime.timedelta(seconds=display_end).total_seconds()
             data['text'] = o[2].strip()
 
-            #return "%1.0f %1.0f %s" % (beg,end,o[2])
             return json.dumps(data)
         else:
             logger.debug("No text in this segment")

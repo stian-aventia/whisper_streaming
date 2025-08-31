@@ -116,9 +116,6 @@ class ServerProcessor:
         self.min_chunk = min_chunk
         self.last_end = None
         self.is_first = True
-        
-        # LEGG TIL: Display linger for å dekke gaps under kontinuerlig tale
-        self.display_linger_sec = 3.0
 
     def receive_audio_chunk(self):
         global running
@@ -144,24 +141,30 @@ class ServerProcessor:
         return np.concatenate(out)
 
     def format_output_transcript(self,o):
+        # This function differs from whisper_online.output_transcript in the following:
+        # succeeding [beg,end] intervals are not overlapping because ELITR protocol (implemented in online-text-flow events) requires it.
+        # Therefore, beg, is max of previous end and current beg outputed by Whisper.
+        # Usually it differs negligibly, by appx 20 ms.
+
         if o[0] is not None:
             beg, end = o[0],o[1]
             if self.last_end is not None:
                 beg = max(beg, self.last_end)
 
-            # REVERSER: Tilbake til original
-            display_end = end + self.display_linger_sec
-            self.last_end = end   # Bruk original end, ikke display_end
+            self.last_end = end
             
             beg_webvtt = self.timedelta_to_webvtt(str(datetime.timedelta(seconds=beg)))
-            end_webvtt = self.timedelta_to_webvtt(str(datetime.timedelta(seconds=display_end)))
+            end_webvtt = self.timedelta_to_webvtt(str(datetime.timedelta(seconds=end)))
             logger.info("%s -> %s %s" % (beg_webvtt, end_webvtt, o[2].strip()))
 
             data = {}
             if(report_language != None and report_language != 'none'):
                 data['language'] = "en"
+            else:
+                data['language'] = report_language
+
             data['start'] = "%1.3f" % datetime.timedelta(seconds=beg).total_seconds()
-            data['end'] = "%1.3f" % datetime.timedelta(seconds=display_end).total_seconds()
+            data['end'] = "%1.3f" % datetime.timedelta(seconds=end).total_seconds()
             data['text'] = o[2].strip()
 
             return json.dumps(data)
@@ -250,14 +253,14 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
     while running:
         try:
             conn, addr = s.accept()
-            logger.debug('Connected to client on {}'.format(addr))
+            logger.info('Connected to client on {}'.format(addr))
             connection = Connection(conn)
             proc = ServerProcessor(connection, online, args.min_chunk_size)
             proc.process()
             conn.close()
         except socket.error as e:
           break # Exit the loop on socket errors            
-        logger.debug('Connection to client closed{}'.format(addr))
+        logger.info('Connection to client closed{}'.format(addr))
 
 logger.info('Server Stopped')
 running=False

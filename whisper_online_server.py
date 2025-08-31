@@ -158,10 +158,9 @@ class ServerProcessor:
             logger.info("%s -> %s %s" % (beg_webvtt, end_webvtt, o[2].strip()))
 
             data = {}
-            if(report_language != None and report_language != 'none'):
-                data['language'] = "en"
-            else:
-                data['language'] = report_language
+            data['language'] = (report_language 
+                   if report_language not in [None, 'none'] 
+                   else ("en" if language in [None, 'none'] else language))
 
             data['start'] = "%1.3f" % datetime.timedelta(seconds=beg).total_seconds()
             data['end'] = "%1.3f" % datetime.timedelta(seconds=end).total_seconds()

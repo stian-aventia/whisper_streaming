@@ -11,6 +11,20 @@ https://github.com/ufal/whisper_streaming
 
 ### Added
 
+### Changed
+
+### Deprecated
+
+### Removed
+
+### Fixed
+
+### Security
+
+## [1.5.1] - 2025-09-04
+
+### Added
+
 - Oversized audio packet guard (warning if single recv exceeds default 5MB; configurable via `MAX_SINGLE_RECV_BYTES`).
 - Minimal PCM chunk validation (drops trailing odd byte in packet; logs once per occurrence).
 - Environment override `PACKET_SIZE_BYTES` for receive buffer size (defaults to prior fixed 5‑minute window).
@@ -25,9 +39,11 @@ https://github.com/ufal/whisper_streaming
 
 ### Deprecated
 
+- (none)
+
 ### Removed
 
-- (Unreleased) Dependency: `librosa` (stream ingestion now uses direct PCM16→float32 path).
+- Dependency: `librosa` (stream ingestion now uses direct PCM16→float32 path).
 
 ### Fixed
 
@@ -36,6 +52,8 @@ https://github.com/ufal/whisper_streaming
 - `local_run.ps1` port mapping argument construction (previous inline backtick style could drop -p value in some shells).
 
 ### Security
+
+- Nothing.
 
 ## [1.5.0] - 2025-09-04
 
@@ -208,7 +226,8 @@ Use: Added, Changed, Deprecated, Removed, Fixed, Security.
 
 ## Link References
 
-[Unreleased]: https://github.com/stian-aventia/whisper_streaming/compare/v1.5.0...HEAD
+[Unreleased]: https://github.com/stian-aventia/whisper_streaming/compare/v1.5.1...HEAD
+[1.5.1]: https://github.com/stian-aventia/whisper_streaming/compare/v1.5.0...v1.5.1
 [1.5.0]: https://github.com/stian-aventia/whisper_streaming/compare/v1.4.0...v1.5.0
 [1.4.0]: https://github.com/stian-aventia/whisper_streaming/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/stian-aventia/whisper_streaming/compare/v1.2.0...v1.3.0

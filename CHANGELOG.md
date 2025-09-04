@@ -23,6 +23,32 @@ https://github.com/ufal/whisper_streaming
 
 ### Security
 
+## [1.4.0] - 2025-09-04
+
+### Added
+
+- HuggingFace repo id & local filesystem path supported transparently via unified `--model` argument (in addition to builtin sizes).
+
+### Changed
+
+- Model selection consolidated: single `--model` parameter covers size/path/HF repo; logging clarified (cache directory only shown when explicitly provided).
+
+### Deprecated
+
+- (none)
+
+### Removed
+
+- `--model_dir` CLI flag and related branching (superseded by consolidated `--model`).
+
+### Fixed
+
+- Minor indentation / refactor artifacts in `asr_factory` corrected (no behavioral impact).
+
+### Security
+
+- Nothing.
+
 ## [1.3.0] - 2025-09-04
 
 ### Added
@@ -138,7 +164,8 @@ Use: Added, Changed, Deprecated, Removed, Fixed, Security.
 
 ## Link References
 
-[Unreleased]: https://github.com/stian-aventia/whisper_streaming/compare/v1.3.0...HEAD
+[Unreleased]: https://github.com/stian-aventia/whisper_streaming/compare/v1.4.0...HEAD
+[1.4.0]: https://github.com/stian-aventia/whisper_streaming/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/stian-aventia/whisper_streaming/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/stian-aventia/whisper_streaming/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/stian-aventia/whisper_streaming/compare/v1.0.0...v1.1.0

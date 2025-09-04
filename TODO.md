@@ -122,7 +122,7 @@ Success Criteria:
 
 ## Phase 4: Faster-Whisper Model Parameter Consolidation
 
-- [ ] Remove `--model_dir`; keep a single `--model` argument whose value is passed directly as `model_size_or_path` to `WhisperModel`. Accept values: Systran model name, local path, or HuggingFace repo id (e.g. `NbAiLab/nb-whisper-large`). Retain `--model_cache_dir` only for download root. Update README + CHANGELOG; add transitional note about removed flag.
+- [x] Remove `--model_dir`; single `--model` now handles builtin size, path or HF repo id.
 - [ ] Bug: Server exits entirely when client/stream disconnects. Keep listening on the port and accept new connections until explicit shutdown.
 - [ ] Improved Ctrl+C (SIGINT) handling: clean shutdown, release socket, consistent final log line (no residual globals).
 

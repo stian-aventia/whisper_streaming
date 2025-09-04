@@ -24,7 +24,7 @@ The server exposes a single TCP port (3000) and expects raw 16 kHz mono PCM16LE 
 | Variable       |        Default | Description                                                                                                                                              |
 | :------------- | -------------: | :------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | BACKEND        | faster-whisper | [faster-whisper,openai-api] Backend to use (local faster-whisper or OpenAI API).                                                                         |
-| MODEL          |        tiny.en | Whisper model size (tiny.en,tiny,base.en,base,small.en,small,medium.en,medium,large-v1,large-v2,large-v3,large,large-v3-turbo). Auto-downloaded to /tmp. |
+| MODEL          |        tiny.en | Model identifier: builtin size (tiny…large-*), local path, or HuggingFace repo id (e.g. NbAiLab/nb-whisper-large). Auto-downloaded to /tmp if remote. |
 | USE_GPU        |          False | Use the GPU if available (only meaningful for faster-whisper).                                                                                           |
 | LANGUAGE       |           auto | Source language code, or 'auto' for detection.                                                                                                           |
 | LOG_LEVEL      |           INFO | [DEBUG,INFO,WARNING,ERROR,CRITICAL] Logging level.                                                                                                       |

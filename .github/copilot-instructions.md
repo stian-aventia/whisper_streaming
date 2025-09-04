@@ -16,7 +16,7 @@ Purpose: Guide AI code assistants to make safe, minimal, high‑value changes wi
 
 ## Near-Term (Phase 4 Targets)
 
-1. Consolidate model params: drop `--model_dir`; single `--model` passed directly to `WhisperModel` (may be name, local path, or HF repo id). Keep `--model_cache_dir`.
+1. Consolidate model params: `--model_dir` removed; only `--model` (builtin size, local path, or HF repo id) plus optional `--model_cache_dir`.
 2. Server robustness: keep listening after client disconnect (loop accept again) until explicit shutdown.
 3. Graceful Ctrl+C: clean socket close, deterministic final log line.
 

@@ -6,11 +6,7 @@ librosa>=0.10
 soundfile>=0.12
 openai>=1.0.0
 
-# Sentence segmentation / tokenization (only needed when using --buffer_trimming sentence)
-mosestokenizer>=1.2.1
-wtpsplit>=1.0.0
-# Ukrainian sentence splitting (optional, used only if --lan uk)
-tokenize-uk>=0.4.0
+## Removed sentence segmentation dependencies (mosestokenizer, wtpsplit, tokenize-uk) after dropping sentence trimming mode.
 
 # Optional / nice-to-have (not currently imported directly)
 # tiktoken  # (not required unless re-introducing openai-whisper or token cost est.)

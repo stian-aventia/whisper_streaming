@@ -278,24 +278,19 @@ class HypothesisBuffer:
     def complete(self):
         return self.buffer
 
+SEGMENT_TRIM_SEC = 15  # fixed trimming threshold (seconds) for completed segments
+
+
 class OnlineASRProcessor:
 
-    #SAMPLING_RATE = 16000
-
-    def __init__(self, asr, tokenizer=None, buffer_trimming=("segment", 15), logfile=sys.stderr):
-        """asr: WhisperASR object
-        tokenizer: sentence tokenizer object for the target language. Must have a method *split* that behaves like the one of MosesTokenizer. It can be None, if "segment" buffer trimming option is used, then tokenizer is not used at all.
-        ("segment", 15)
-        buffer_trimming: a pair of (option, seconds), where option is either "sentence" or "segment", and seconds is a number. Buffer is trimmed if it is longer than "seconds" threshold. Default is the most recommended option.
-        logfile: where to store the log. 
+    def __init__(self, asr, logfile=sys.stderr):
+        """Simplified processor: always segment-based trimming with fixed 15s window.
+        asr: backend ASR instance
+        logfile: stream for logging
         """
         self.asr = asr
-        self.tokenizer = tokenizer
         self.logfile = logfile
-
         self.init()
-
-        self.buffer_trimming_way, self.buffer_trimming_sec = buffer_trimming
 
     def init(self, offset=None):
         """run this when starting or restarting processing"""
@@ -352,49 +347,13 @@ class OnlineASRProcessor:
         the_rest = self.to_flush(self.transcript_buffer.complete())
         logger.debug(f"INCOMPLETE: {the_rest}")
 
-        # there is a newly confirmed text
-
-        if o and self.buffer_trimming_way == "sentence":  # trim the completed sentences
-            if len(self.audio_buffer)/SAMPLING_RATE > self.buffer_trimming_sec:  # longer than this
-                self.chunk_completed_sentence()
-
-        
-        if self.buffer_trimming_way == "segment":
-            s = self.buffer_trimming_sec  # trim the completed segments longer than s,
-        else:
-            s = 30 # if the audio buffer is longer than 30s, trim it
-        
-        if len(self.audio_buffer)/SAMPLING_RATE > s:
+        # segment-based trimming only (sentence mode removed)
+        if len(self.audio_buffer)/SAMPLING_RATE > SEGMENT_TRIM_SEC:
             self.chunk_completed_segment(res)
-
-            # alternative: on any word
-            #l = self.buffer_time_offset + len(self.audio_buffer)/SAMPLING_RATE - 10
-            # let's find commited word that is less
-            #k = len(self.commited)-1
-            #while k>0 and self.commited[k][1] > l:
-            #    k -= 1
-            #t = self.commited[k][1] 
             logger.debug("chunking segment")
-            #self.chunk_at(t)
 
         logger.debug(f"len of buffer now: {len(self.audio_buffer)/SAMPLING_RATE:2.2f}")
         return self.to_flush(o)
-
-    def chunk_completed_sentence(self):
-        if self.commited == []: return
-        logger.debug(self.commited)
-        sents = self.words_to_sentences(self.commited)
-        for s in sents:
-            logger.debug(f"\t\tSENT: {s}")
-        if len(sents) < 2:
-            return
-        while len(sents) > 2:
-            sents.pop(0)
-        # we will continue with audio processing at this timestamp
-        chunk_at = sents[-2][1]
-
-        logger.debug(f"--- sentence chunked at {chunk_at:2.2f}")
-        self.chunk_at(chunk_at)
 
     def chunk_completed_segment(self, res):
         if self.commited == []: return
@@ -429,32 +388,6 @@ class OnlineASRProcessor:
         self.audio_buffer = self.audio_buffer[int(cut_seconds*SAMPLING_RATE):]
         self.buffer_time_offset = time
 
-    def words_to_sentences(self, words):
-        """Uses self.tokenizer for sentence segmentation of words.
-        Returns: [(beg,end,"sentence 1"),...]
-        """
-        
-        cwords = [w for w in words]
-        t = " ".join(o[2] for o in cwords)
-        s = self.tokenizer.split(t)
-        out = []
-        while s:
-            beg = None
-            end = None
-            sent = s.pop(0).strip()
-            fsent = sent
-            while cwords:
-                b,e,w = cwords.pop(0)
-                w = w.strip()
-                if beg is None and sent.startswith(w):
-                    beg = b
-                elif end is None and sent == w:
-                    end = e
-                    out.append((beg,end,fsent))
-                    break
-                sent = sent[len(w):].strip()
-        return out
-
     def finish(self):
         """Flush the incomplete text when the whole processing ends.
         Returns: the same format as self.process_iter()
@@ -483,40 +416,6 @@ class OnlineASRProcessor:
 
 
 
-
-WHISPER_LANG_CODES = "af,am,ar,as,az,ba,be,bg,bn,bo,br,bs,ca,cs,cy,da,de,el,en,es,et,eu,fa,fi,fo,fr,gl,gu,ha,haw,he,hi,hr,ht,hu,hy,id,is,it,ja,jw,ka,kk,km,kn,ko,la,lb,ln,lo,lt,lv,mg,mi,mk,ml,mn,mr,ms,mt,my,ne,nl,nn,no,oc,pa,pl,ps,pt,ro,ru,sa,sd,si,sk,sl,sn,so,sq,sr,su,sv,sw,ta,te,tg,th,tk,tl,tr,tt,uk,ur,uz,vi,yi,yo,zh".split(",")
-
-def create_tokenizer(lan):
-    """returns an object that has split function that works like the one of MosesTokenizer"""
-
-    assert lan in WHISPER_LANG_CODES, "language must be Whisper's supported lang code: " + " ".join(WHISPER_LANG_CODES)
-
-    if lan == "uk":
-        import tokenize_uk
-        class UkrainianTokenizer:
-            def split(self, text):
-                return tokenize_uk.tokenize_sents(text)
-        return UkrainianTokenizer()
-
-    # supported by fast-mosestokenizer
-    if lan in "as bn ca cs de el en es et fi fr ga gu hi hu is it kn lt lv ml mni mr nl or pa pl pt ro ru sk sl sv ta te yue zh".split():
-        from mosestokenizer import MosesTokenizer
-        return MosesTokenizer(lan)
-
-    # the following languages are in Whisper, but not in wtpsplit:
-    if lan in "as ba bo br bs fo haw hr ht jw lb ln lo mi nn oc sa sd sn so su sw tk tl tt".split():
-        logger.debug(f"{lan} code is not supported by wtpsplit. Going to use None lang_code option.")
-        lan = None
-
-    from wtpsplit import WtP
-    # downloads the model from huggingface on the first use
-    wtp = WtP("wtp-canine-s-12l-no-adapters")
-    class WtPtok:
-        def split(self, sent):
-            return wtp.split(sent, lang_code=lan)
-    return WtPtok()
-
-
 def add_shared_args(parser):
     """shared args for simulation (this entry point) and server
     parser: argparse.ArgumentParser object
@@ -529,8 +428,7 @@ def add_shared_args(parser):
     parser.add_argument('--task', type=str, default='transcribe', choices=["transcribe","translate"],help="Transcribe or translate.")
     parser.add_argument('--backend', type=str, default="faster-whisper", choices=["faster-whisper", "openai-api"],help='Backend: faster-whisper (local) or openai-api (remote).')
     parser.add_argument('--vad', action="store_true", default=True, help='Use VAD = voice activity detection (default: enabled).')
-    parser.add_argument('--buffer_trimming', type=str, default="segment", choices=["sentence", "segment"],help='Buffer trimming strategy -- trim completed sentences marked with punctuation mark and detected by sentence segmenter, or the completed segments returned by Whisper. Sentence segmenter must be installed for "sentence" option.')
-    parser.add_argument('--buffer_trimming_sec', type=float, default=15, help='Buffer trimming length threshold in seconds. If buffer length is longer, trimming sentence/segment is triggered.')
+    # Buffer trimming options removed: always segment with fixed 15s threshold.
     parser.add_argument("-l", "--log-level", dest="log_level", choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'], help="Set the log level", default='DEBUG')
     parser.add_argument("--sampling_rate", type=int, default=16000)
     parser.add_argument("--use_gpu", type=lambda x: (str(x).lower() in ['true','1', 'yes']), default=False, help='Use the GPU')
@@ -562,14 +460,8 @@ def asr_factory(args, logfile=sys.stderr):
     else:
         tgt_language = language  # Whisper transcribes in this language
 
-    # Create the tokenizer
-    if args.buffer_trimming == "sentence":
-        tokenizer = create_tokenizer(tgt_language)
-    else:
-        tokenizer = None
-
     # Create the OnlineASRProcessor
-    online = OnlineASRProcessor(asr,tokenizer,logfile=logfile,buffer_trimming=(args.buffer_trimming, args.buffer_trimming_sec))
+    online = OnlineASRProcessor(asr, logfile=logfile)
 
     return asr, online
 
@@ -614,10 +506,7 @@ if __name__ == "__main__":
     logger.info("Audio duration is: %2.2f seconds" % duration)
 
     asr, online = asr_factory(args, logfile=logfile)
-    if args.vac:
-        min_chunk = args.vac_chunk_size
-    else:
-        min_chunk = args.min_chunk_size
+    min_chunk = args.min_chunk_size
 
     # load the audio into the LRU cache before we start the timer
     a = load_audio_chunk(audio_path,0,1)

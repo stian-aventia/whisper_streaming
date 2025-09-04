@@ -6,11 +6,14 @@ FROM python:3.12-bookworm
 
 ARG DEBIAN_FRONTEND=noninteractive
 
-RUN apt update && apt install ffmpeg netcat-traditional -y
+RUN apt update && apt install -y --no-install-recommends \
+    ffmpeg \
+    netcat-traditional \
+    && rm -rf /var/lib/apt/lists/*
 
-RUN pip install --no-deps openai-whisper
-# dependancies
-RUN pip install numba numpy tqdm more-itertools tiktoken
+# Install only the project requirements (sentence tokenizer deps already pruned)
+COPY requirements.txt /tmp/requirements.txt
+RUN pip install --no-cache-dir -r /tmp/requirements.txt
 
 # Install these for GPU, increases image size by ~5GB
 # RUN pip install torch 
@@ -20,9 +23,8 @@ RUN pip install numba numpy tqdm more-itertools tiktoken
 # RUN apt update && apt install cudnn9-cuda-12 -y
 #
 
-RUN pip install librosa soundfile
-RUN pip install faster-whisper
-RUN pip install hf_xet
+## (Removed) explicit installs of libs now handled via requirements.txt
+# Retained hf_xet if kept in requirements for legacy reasons.
 
 # create a working directory
 RUN mkdir /app
@@ -31,6 +33,7 @@ WORKDIR /app
 COPY *.py .
 COPY entrypoint.sh .
 COPY LICENSE.txt .
+COPY whisper_online_server.py .
 
 # Normalize potential Windows line endings and ensure executable bit for entrypoint
 RUN sed -i 's/\r$//' /app/entrypoint.sh && chmod +x /app/entrypoint.sh

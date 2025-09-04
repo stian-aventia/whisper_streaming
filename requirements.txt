@@ -1,0 +1,31 @@
+# Core runtime dependencies
+# Pin minimally (major.minor) for stability; adjust as needed.
+numpy>=1.26
+faster-whisper>=1.0.0
+librosa>=0.10
+soundfile>=0.12
+openai>=1.0.0
+
+# Sentence segmentation / tokenization (only needed when using --buffer_trimming sentence)
+mosestokenizer>=1.2.1
+wtpsplit>=1.0.0
+# Ukrainian sentence splitting (optional, used only if --lan uk)
+tokenize-uk>=0.4.0
+
+# Optional / nice-to-have (not currently imported directly)
+# tiktoken  # (not required unless re-introducing openai-whisper or token cost est.)
+# numba     # (librosa may pull it transitively; keep unpinned unless explicitly used)
+# tqdm      # (progress bars; currently unused)
+# more-itertools  # (unused)
+hf_xet    # (installed previously; not used in code)
+# openai-whisper  # (replaced by faster-whisper backend)
+
+# Dev / tooling (uncomment as needed)
+# pytest
+# black
+# ruff
+
+# Notes:
+# - GPU acceleration for faster-whisper handled internally via ctranslate2; no torch dependency required.
+# - Keep openai package for remote API backend (OpenaiApiASR).
+# - Consider moving optional groups into extras via pyproject.toml in future.

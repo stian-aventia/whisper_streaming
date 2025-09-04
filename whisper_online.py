@@ -264,7 +264,11 @@ class HypothesisBuffer:
     def complete(self):
         return self.buffer
 
-SEGMENT_TRIM_SEC = 15  # fixed trimming threshold (seconds) for completed segments
+# Fixed trimming threshold (seconds) for completed segments.
+# Rationale: 15s provides a stable context window larger than the target end-to-end latency (~10s delay use case)
+# while keeping memory low (< ~1MB float32 PCM) and limiting re-transcription span. This stays internal and
+# unconfigurable to preserve deterministic behaviour / protocol timing semantics.
+SEGMENT_TRIM_SEC = 15  # DO NOT expose as CLI/env without explicit approval.
 
 class OnlineASRProcessor:
 

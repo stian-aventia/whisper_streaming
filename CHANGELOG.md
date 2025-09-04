@@ -32,6 +32,7 @@ https://github.com/ufal/whisper_streaming
 ### Changed
 
 - Friendlier log message for client connection resets (WinError 10054 / ECONNRESET) now reported as "Unexpected client disconnect" including peer address.
+- Audio ingestion path prepared for optimization (Phase 5): switched to direct PCM16→float32 decoding (no behavioral change to output).
 
 ### Deprecated
 

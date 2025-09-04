@@ -76,8 +76,23 @@ class Connection:
             return None
 
 
-import io
-import soundfile
+import io  # (legacy import; retained if needed elsewhere)
+
+# Direct PCM16LE -> float32 decoder (Phase 5 optimization)
+def pcm16le_bytes_to_float32(raw_bytes):
+    """Convert little-endian signed 16-bit PCM bytes to float32 [-1,1].
+    Drops a trailing odd byte if present (logs once). Returns np.ndarray or None.
+    """
+    if not raw_bytes:
+        return None
+    ln = len(raw_bytes)
+    if ln % 2 == 1:  # odd length – drop last byte
+        logger.debug(f"Dropping trailing odd byte in audio packet len={ln}")
+        raw_bytes = raw_bytes[:-1]
+    if not raw_bytes:
+        return None
+    audio = np.frombuffer(raw_bytes, dtype='<i2').astype(np.float32) / 32768.0
+    return audio
 
 # wraps socket and ASR object, and serves one client connection. 
 # next client should be served by a new instance of this object
@@ -118,10 +133,17 @@ class ServerProcessor:
             raw_bytes = self.connection.non_blocking_receive_audio()
             if not raw_bytes:
                 break
-#            print("received audio:",len(raw_bytes), "bytes", raw_bytes[:10])
-            sf = soundfile.SoundFile(io.BytesIO(raw_bytes), channels=1,endian="LITTLE",samplerate=SAMPLING_RATE, subtype="PCM_16",format="RAW")
-            audio, _ = librosa.load(sf,sr=SAMPLING_RATE,dtype=np.float32)
+            # Direct decode path (replaces soundfile+librosa chain)
+            audio = pcm16le_bytes_to_float32(raw_bytes)
+            if audio is None or audio.size == 0:
+                break
             out.append(audio)
+            global direct_decode_logged
+            if 'direct_decode_logged' not in globals():
+                direct_decode_logged = False
+            if not direct_decode_logged:
+                logger.debug("Using direct PCM16 -> float32 decoder (Phase 5)")
+                direct_decode_logged = True
         if not out:
             return None
         conc = np.concatenate(out)

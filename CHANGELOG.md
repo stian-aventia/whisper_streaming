@@ -11,11 +11,11 @@ https://github.com/ufal/whisper_streaming
 
 ### Added
 
-- (nothing yet)
+- (planned) Direct PCM16→float ingestion (Phase 4) – not yet implemented.
 
 ### Changed
 
-- (nothing yet)
+- Internal server simplified: removed dormant source-stream code paths (ffmpeg thread logic).
 
 ### Deprecated
 
@@ -23,15 +23,15 @@ https://github.com/ufal/whisper_streaming
 
 ### Removed
 
-- (nothing yet)
+- `--source-stream` argument and internal ffmpeg/netcat ingestion pipeline.
 
 ### Fixed
 
-- (nothing yet)
+- Nothing.
 
 ### Security
 
-- (nothing yet)
+- Nothing.
 
 ## [1.2.0] - 2025-09-04
 

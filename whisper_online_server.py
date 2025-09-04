@@ -6,9 +6,6 @@ import argparse
 import os
 import logging
 import numpy as np
-import time
-import subprocess
-import threading
 import signal
 import datetime
 import json
@@ -19,7 +16,6 @@ parser = argparse.ArgumentParser()
 # server options
 parser.add_argument("--host", type=str, default='localhost')
 parser.add_argument("--port", type=int, default=3000)
-parser.add_argument("--source-stream", type=str, default=None)
 
 # options from whisper_online
 add_shared_args(parser)
@@ -170,7 +166,7 @@ class ServerProcessor:
 
     def send_result(self, o):
         msg = self.format_output_transcript(o)
-        if msg is not None and (source_stream == None or source_stream == 'none'):
+        if msg is not None:
             self.connection.send(msg)
 
     def process(self):
@@ -205,33 +201,17 @@ class ServerProcessor:
         except BrokenPipeError:
             logger.info("broken pipe -- connection closed?")
 
-def run_subprocess(command):
-    process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    stdout, stderr = process.communicate()
-    return stdout.decode(), stderr.decode(), process.returncode
+def run_subprocess(*_a, **_kw):
+    raise RuntimeError("run_subprocess removed (source-stream ingestion deprecated)")
 
-def worker_thread(command):
-    global running    
-    while running:
-        stdout, stderr, returncode = run_subprocess(command)
-        logger.debug(f"Return Code: {returncode}")
-        time.sleep(1.0)
+def worker_thread(*_a, **_kw):
+    raise RuntimeError("worker_thread removed (source-stream ingestion deprecated)")
 
 def stop(self, signum=None, frame=None):
     global running,server_socket
     server_socket.close()
     running = False
 
-# source_stream = "rtmp://wse.docker/live/myStream_160p"
-#command = "ffmpeg -hide_banner -loglevel error -f flv -i rtmp://host.docker.internal/live/myStream_aac -c:a pcm_s16le -ac 1 -ar 16000 -f s16le - | nc -q 1 localhost 3000"
-#command = "ffmpeg -hide_banner -loglevel error -f flv -i rtmp://d93ab27c23fd-qa.entrypoint.cloud.wowza.com/app-Qp8R494H/259c678c_stream7 -c:a pcm_s16le -ac 1 -ar 16000 -f s16le - | nc -q 1 localhost 3000"
-source_stream = args.source_stream
-if source_stream != None and source_stream != 'none':
-    command = "ffmpeg -hide_banner -loglevel error -f flv -i " + source_stream + " -vn -c:a pcm_s16le -ac 1 -ar " + str(SAMPLING_RATE) + " -f s16le - | nc -q 1 localhost 3000"
-    logger.info("Running ffmpeg to connect stream "+source_stream+ " with whisper server:")
-    logger.info("    " + command)
-    thread = threading.Thread(target=worker_thread, args=(command,))
-    thread.start()
 
 
 # server loop

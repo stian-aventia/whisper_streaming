@@ -87,8 +87,8 @@ Goal: Focus codebase exclusively on the persistent TCP server. Remove embedded f
 
 Scope:
 
-- Remove `--source-stream` argument and related environment variable handling (docker-compose `SOURCE_STREAM`, entrypoint.sh var, server code building ffmpeg command).
-- Delete / refactor out: `run_subprocess`, `worker_thread`, ffmpeg command assembly, thread launch logic in `whisper_online_server.py`.
+- [x] Remove `--source-stream` argument and related environment variable handling (entrypoint + server code + compose comments).
+- [x] Delete / refactor out: `run_subprocess`, `worker_thread`, ffmpeg command assembly, thread launch logic in `whisper_online_server.py`.
 - Remove dependency on `ffmpeg` and `netcat` from Dockerfile once feature removed (move apt purge to same commit if safe, else subsequent commit in phase).
 - Remove standalone file simulation & offline modes:
   - Eliminate `whisper_online.py` CLI execution block (or split processor/backends into a module file and delete the executable parts).

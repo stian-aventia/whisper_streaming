@@ -14,7 +14,6 @@ backend="${BACKEND:-faster-whisper}"
 model="${MODEL:-tiny.en}"
 language="${LANGUAGE:-auto}"
 log_level="${LOG_LEVEL:-INFO}"
-source_stream="${SOURCE_STREAM:-none}"
 min_chunk_size="${MIN_CHUNK_SIZE:-1}"
 sampling_rate="${SAMPLING_RATE:-16000}"
 use_gpu="${USE_GPU:-False}"
@@ -22,7 +21,6 @@ use_gpu="${USE_GPU:-False}"
 exec python whisper_online_server.py \
 	--backend $backend \
 	--model $model \
-	--source-stream $source_stream \
 	--min-chunk-size $min_chunk_size \
 	--sampling_rate $sampling_rate \
 	--use_gpu $use_gpu \

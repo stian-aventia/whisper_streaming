@@ -9,7 +9,7 @@ https://github.com/ufal/whisper_streaming
 
 ## [Unreleased]
 ### Added
-- Nothing yet.
+- Developer continuation guide `INSTRUCTIONS.md`.
 
 ### Changed
 - Nothing yet.

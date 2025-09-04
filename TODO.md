@@ -12,7 +12,7 @@ Scope: Minimal refactor to support only required functionality for live transcri
 - [x] Remove unsupported backends: `WhisperTimestampedASR`, `MLXWhisper`.
 - [x] Remove `VACOnlineASRProcessor` (Silero VAD controller) and related args (`--vac`, `--vac-chunk-size`).
 - [x] Restrict `--backend` choices to: `faster-whisper`, `openai-api`.
-- [ ] Remove `--report-language` option (unused); do NOT replace output structure now.
+- [x] Remove `--report-language` option (unused); use existing --lan for output language fallback 'en'.
 - [ ] Keep `--vad` flag (only meaningful for faster-whisper; ignored with warning for OpenAI).
 - [ ] Update `CHANGELOG` (Unreleased) with Removed/Changed entries (mark internal only; no protocol change).
 

@@ -22,7 +22,6 @@ parser.add_argument("--port", type=int, default=3000)
 parser.add_argument("--warmup-file", type=str, dest="warmup_file", 
         help="The path to a speech audio wav file to warm up Whisper so that the very first chunk processing is fast. It can be e.g. https://github.com/ggerganov/whisper.cpp/raw/master/samples/jfk.wav .")
 parser.add_argument("--source-stream", type=str, default=None)
-parser.add_argument("--report-language", type=str, default=None)
 
 # options from whisper_online
 add_shared_args(parser)
@@ -159,8 +158,11 @@ class ServerProcessor:
             logger.info("%s -> %s %s" % (beg_webvtt, end_webvtt, o[2].strip()))
 
             data = {}
-            if(report_language != None and report_language != 'none'):
-                data['language'] = "en"
+            # language field: use provided --lan unless 'auto', then fallback to 'en'
+            if language and language != 'auto':
+                data['language'] = language
+            else:
+                data['language'] = 'en'
             data['start'] = "%1.3f" % datetime.timedelta(seconds=beg).total_seconds()
             data['end'] = "%1.3f" % datetime.timedelta(seconds=end).total_seconds()
             data['text'] = o[2].strip()
@@ -228,7 +230,6 @@ def stop(self, signum=None, frame=None):
 # source_stream = "rtmp://wse.docker/live/myStream_160p"
 #command = "ffmpeg -hide_banner -loglevel error -f flv -i rtmp://host.docker.internal/live/myStream_aac -c:a pcm_s16le -ac 1 -ar 16000 -f s16le - | nc -q 1 localhost 3000"
 #command = "ffmpeg -hide_banner -loglevel error -f flv -i rtmp://d93ab27c23fd-qa.entrypoint.cloud.wowza.com/app-Qp8R494H/259c678c_stream7 -c:a pcm_s16le -ac 1 -ar 16000 -f s16le - | nc -q 1 localhost 3000"
-report_language = args.report_language
 source_stream = args.source_stream
 if source_stream != None and source_stream != 'none':
     command = "ffmpeg -hide_banner -loglevel error -f flv -i " + source_stream + " -vn -c:a pcm_s16le -ac 1 -ar " + str(SAMPLING_RATE) + " -f s16le - | nc -q 1 localhost 3000"

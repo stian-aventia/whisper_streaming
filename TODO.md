@@ -171,14 +171,14 @@ Phase 4 core items completed (further refinements, if any, will be tracked separ
 ### Deferred (Post v1.2) Container / Image Improvements
 
 - (done) Switch base image to `python:3.12-slim` (libsndfile1 installed for soundfile).
-- Add `.dockerignore` to exclude model snapshots, caches, venv, pyc files from build context.
+- (done)Add `.dockerignore` to exclude model snapshots, caches, venv, pyc files from build context.
 - Consider multi-stage build (builder for wheels, runtime slim) and/or separate GPU Dockerfile with torch + cudnn.
 - Add simple healthcheck (e.g. TCP connect script or lightweight Python probe) for orchestration readiness.
 - Pin base image by digest for reproducibility & to reduce vulnerability scan noise between patch releases.
 - Optionally generate requirements lock (`pip compile` / hashes) once dependency set stabilizes.
-- Explore dropping `hf_xet` if confirmed unused at runtime (follow-up verification required).
-- Review and remove temporary `setuptools<81` pin once ctranslate2/faster-whisper drop pkg_resources usage.
-- Remove `--source-stream` ingestion path: delete ffmpeg/ncat runtime dependency, associated thread + subprocess helpers in `whisper_online_server.py`, and apt installs (ffmpeg, netcat) from Dockerfile; require external ffmpeg piping instead (will further slim image). (Planned after confirming no internal usage.)
+- (done)Explore dropping `hf_xet` if confirmed unused at runtime (follow-up verification required).
+- (done)Review and remove temporary `setuptools<81` pin once ctranslate2/faster-whisper drop pkg_resources usage.
+- (done)Remove `--source-stream` ingestion path: delete ffmpeg/ncat runtime dependency, associated thread + subprocess helpers in `whisper_online_server.py`, and apt installs (ffmpeg, netcat) from Dockerfile; require external ffmpeg piping instead (will further slim image). (Planned after confirming no internal usage.)
 
 ## Risk / Mitigation
 

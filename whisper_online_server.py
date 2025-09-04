@@ -25,6 +25,7 @@ set_logging(args,logger,other="")
 
 running=True
 server_socket = None  # will be set after socket creation
+shutdown_logged = False
 # setting whisper object by args 
 
 SAMPLING_RATE = args.sampling_rate
@@ -204,13 +205,22 @@ def run_subprocess(*_a, **_kw):
 def worker_thread(*_a, **_kw):
     raise RuntimeError("worker_thread not available")
 
-def stop(self, signum=None, frame=None):
-    global running, server_socket
+def stop(signum, frame):
+    """Signal handler for graceful shutdown (Ctrl+C / SIGTERM)."""
+    global running, server_socket, shutdown_logged
+    if not running:  # already shutting down
+        return
     running = False
+    sig_name = 'SIGINT' if signum == signal.SIGINT else 'SIGTERM'
+    logger.info(f'Shutdown signal received ({sig_name}); finishing current operation...')
     if server_socket is not None:
         try:
+            server_socket.shutdown(socket.SHUT_RDWR)
+        except Exception:
+            pass
+        try:
             server_socket.close()
-        except OSError:
+        except Exception:
             pass
 
 
@@ -224,12 +234,18 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
     server_socket = s
     s.bind((args.host, args.port))
     s.listen(1)
+    # Set a timeout so accept() wakes up periodically to observe running flag on Windows
+    s.settimeout(1.0)
     logger.info('Listening on'+str((args.host, args.port)))
     last_client_addr = None
     while running:
         try:
             try:
                 conn, addr = s.accept()
+            except socket.timeout:
+                if not running:
+                    break
+                continue
             except OSError as e:
                 if not running:
                     break  # socket was closed due to shutdown
@@ -265,5 +281,6 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                     logger.error(f"Unexpected server loop error: {e}; continuing")
             continue
 
-logger.info('Server Stopped')
+if not shutdown_logged:
+    logger.info('Server stopped gracefully')
 running=False

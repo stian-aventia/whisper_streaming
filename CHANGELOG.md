@@ -24,6 +24,8 @@ https://github.com/ufal/whisper_streaming
 ### Fixed
 
 - Server now continues listening after client disconnect (persistent accept loop).
+- Graceful Ctrl+C/SIGTERM: single final 'Server stopped gracefully' line; cleaner socket shutdown.
+- Fixed Windows Ctrl+C not exiting promptly (added accept() timeout & corrected signal handler signature).
 
 ### Security
 

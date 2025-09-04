@@ -21,6 +21,7 @@ https://github.com/ufal/whisper_streaming
 - Legacy backends: `WhisperTimestampedASR`, `MLXWhisper`.
 - Silero-based VAC processing (`VACOnlineASRProcessor`) and related CLI flags `--vac`, `--vac-chunk-size`.
 - CLI flag `--report-language` (language field now derives from `--lan` with fallback to 'en').
+- CLI flag `--warmup-file` and bundled sample `samples_jfk.wav` (replaced by internal silent warm-up for local backend).
 
 ### Fixed
 - N/A

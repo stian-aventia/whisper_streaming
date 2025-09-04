@@ -19,8 +19,6 @@ parser = argparse.ArgumentParser()
 # server options
 parser.add_argument("--host", type=str, default='localhost')
 parser.add_argument("--port", type=int, default=3000)
-parser.add_argument("--warmup-file", type=str, dest="warmup_file", 
-        help="The path to a speech audio wav file to warm up Whisper so that the very first chunk processing is fast. It can be e.g. https://github.com/ggerganov/whisper.cpp/raw/master/samples/jfk.wav .")
 parser.add_argument("--source-stream", type=str, default=None)
 
 # options from whisper_online
@@ -38,19 +36,16 @@ language = args.lan
 asr, online = asr_factory(args)
 min_chunk = args.min_chunk_size
 
-# warm up the ASR because the very first transcribe takes more time than the others. 
-# Test results in https://github.com/ufal/whisper_streaming/pull/81
-msg = "Whisper is not warmed up. The first chunk processing may take longer."
-if args.warmup_file:
-    if os.path.isfile(args.warmup_file):
-        a = load_audio_chunk(args.warmup_file,0,1)
-        asr.transcribe(a)
-        logger.info("Whisper is warmed up.")
+# Warm-up: run a short silent buffer through model so first real chunk is faster
+try:
+    if args.backend == 'faster-whisper':
+        silent = np.zeros(int(SAMPLING_RATE * 0.5), dtype=np.float32)  # 0.5s silence
+        asr.transcribe(silent)
+        logger.info("Model warm-up with generated silence complete.")
     else:
-        logger.critical("The warm up file is not available. "+msg)
-        sys.exit(1)
-else:
-    logger.warning(msg)
+        logger.debug("Skipping local warm-up for non local backend.")
+except Exception as e:
+    logger.warning(f"Warm-up failed (continuing without): {e}")
 
 
 ######### Server objects

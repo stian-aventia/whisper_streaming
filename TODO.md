@@ -18,7 +18,7 @@ Scope: Minimal refactor to support only required functionality for live transcri
 
 ## Phase 2: Audio Ingestion Optimization
 - [ ] Replace per-chunk RAW decode pipeline (soundfile + librosa) with direct PCM16 → float32 via `np.frombuffer`.
-- [ ] Retain librosa only for file-based warmup (if warmup-file provided).
+- [ ] (future) Replace librosa in streaming path; warm-up now silent (no file dependency).
 - [ ] Add minimal validation: ensure even byte length; discard leftover partial sample if any.
 - [ ] Add guard for oversized single recv (log warning if > X MB configurable?).
 
@@ -41,7 +41,7 @@ Scope: Minimal refactor to support only required functionality for live transcri
 
 ## Phase 6: Documentation
 - [ ] Update README to reflect supported backends only.
-- [ ] Document warmup behaviour and required input audio format (16kHz mono PCM16LE streaming).
+- [ ] Document silent warm-up and required input audio format (16kHz mono PCM16LE streaming).
 - [ ] Add note that output format is frozen for downstream compatibility.
 
 ## Deferred / Out of Scope For Now
@@ -59,7 +59,7 @@ Scope: Minimal refactor to support only required functionality for live transcri
 
 ## Quick Regression Test Ideas (Later)
 - Feed synthetic sine + short speech frame → ensure at least one non-empty transcript segment.
-- Warmup file path invalid → exits with critical log (existing behaviour preserved).
+- Warmup file path invalid → (removed feature) now irrelevant.
 
 ## Execution Order (Granular Commits)
 1. Remove backends & VAC classes + CLI prune + CHANGELOG update.

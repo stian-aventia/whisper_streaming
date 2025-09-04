@@ -134,6 +134,9 @@ Phase 4 core items completed.
 - [x] Replace librosa in streaming path; warm-up now silent (no file dependency).
 - [x] Add minimal validation: ensure even byte length; discard leftover partial sample if any (implemented in `pcm16le_bytes_to_float32`).
 - [x] Add guard for oversized single recv (logs warning if > threshold; env `MAX_SINGLE_RECV_BYTES` overrides default 5MB).
+ - [x] Add env override for packet size (`PACKET_SIZE_BYTES`) retaining prior default.
+ - [x] Sanity warn if `--min-chunk-size` > segment trim window (15s) to prevent delayed first output.
+ - [x] Remove unused server vars (`size`, `min_chunk`) and legacy `io` import; add type hints to decode & receive helpers.
 
 ## Phase 6: Server Loop Hygiene
 

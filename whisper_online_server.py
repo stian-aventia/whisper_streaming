@@ -10,6 +10,7 @@ import numpy as np
 import signal
 import datetime
 import json
+from typing import Optional, Union
 
 logger = logging.getLogger(__name__)
 
@@ -39,10 +40,21 @@ shutdown_logged = False
 # setting whisper object by args 
 
 SAMPLING_RATE = args.sampling_rate
-size = args.model
+# Removed unused local aliases (size, min_chunk) to reduce namespace noise.
 language = args.lan
 asr, online = asr_factory(args)
-min_chunk = args.min_chunk_size
+
+# Sanity warning: if min_chunk_size exceeds fixed segment trim window (15s),
+# initial transcripts may be delayed indefinitely. Log once.
+try:
+    from whisper_online import SEGMENT_TRIM_SEC as _SEGMENT_TRIM_SEC
+except Exception:
+    _SEGMENT_TRIM_SEC = 15  # fallback (should not differ)
+if args.min_chunk_size > _SEGMENT_TRIM_SEC:
+    logger.warning(
+        f"Configured --min-chunk-size ({args.min_chunk_size}s) exceeds internal segment trim window "
+        f"({_SEGMENT_TRIM_SEC}s); this can delay first transcript emission. Consider lowering it."
+    )
 
 # Warm-up: run a short silent buffer through model so first real chunk is faster
 try:
@@ -64,9 +76,15 @@ import socket
 # Oversized packet guard (Phase 5): configurable threshold (default 5MB)
 MAX_SINGLE_RECV_BYTES = int(os.environ.get("MAX_SINGLE_RECV_BYTES", str(5 * 1024 * 1024)))
 
+# Packet size override (micro-improvement): allow tuning recv buffer without code change.
+# Default keeps prior behaviour (5 minutes @ 16kHz 32000 bytes/sec * 5 * 60).
+DEFAULT_PACKET_SIZE_BYTES = 32000 * 5 * 60
+PACKET_SIZE_BYTES = int(os.environ.get("PACKET_SIZE_BYTES", str(DEFAULT_PACKET_SIZE_BYTES)))
+
 class Connection:
     '''it wraps conn object'''
-    PACKET_SIZE = 32000*5*60 # 5 minutes # was: 65536
+    # Previously fixed at 32000*5*60; now overridable via PACKET_SIZE_BYTES env (same default).
+    PACKET_SIZE = PACKET_SIZE_BYTES  # 5 minutes buffer @16kHz (was hard-coded 32000*5*60)
 
     def __init__(self, conn):
         self.conn = conn
@@ -93,12 +111,13 @@ class Connection:
             return None
 
 
-import io  # (legacy import; retained if needed elsewhere)
+# (Removed unused legacy 'io' import.)
 
 # Direct PCM16LE -> float32 decoder (Phase 5 optimization)
-def pcm16le_bytes_to_float32(raw_bytes):
-    """Convert little-endian signed 16-bit PCM bytes to float32 [-1,1].
-    Drops a trailing odd byte if present (logs once). Returns np.ndarray or None.
+def pcm16le_bytes_to_float32(raw_bytes: Optional[Union[bytes, bytearray, memoryview]]) -> Optional[np.ndarray]:
+    """Convert little-endian signed 16-bit PCM bytes to float32 array in [-1,1].
+    - Accepts bytes-like object; returns np.ndarray or None if empty/invalid.
+    - Drops trailing odd byte (logs at DEBUG level per occurrence).
     """
     if not raw_bytes:
         return None
@@ -141,7 +160,7 @@ class ServerProcessor:
 
         self.is_first = True
 
-    def receive_audio_chunk(self):
+    def receive_audio_chunk(self) -> Optional[np.ndarray]:
         global running
         # receive all audio that is available by this time
         # blocks operation if less than self.min_chunk seconds is available

@@ -10,10 +10,16 @@ https://github.com/ufal/whisper_streaming
 ## [Unreleased]
 
 ### Added
- - Oversized audio packet guard (warning if single recv exceeds default 5MB; configurable via `MAX_SINGLE_RECV_BYTES`).
- - Minimal PCM chunk validation (drops trailing odd byte in packet; logs once per occurrence).
+
+- Oversized audio packet guard (warning if single recv exceeds default 5MB; configurable via `MAX_SINGLE_RECV_BYTES`).
+- Minimal PCM chunk validation (drops trailing odd byte in packet; logs once per occurrence).
+- Environment override `PACKET_SIZE_BYTES` for receive buffer size (defaults to prior fixed 5‑minute window).
+- Sanity warning if `--min-chunk-size` exceeds internal 15s trim window (avoids silent startup delays).
 
 ### Changed
+
+- Minor internal cleanup: removed unused server variables (`size`, `min_chunk`) and legacy `io` import (no functional change).
+- Added type hints for PCM decode + receive loop helper (internal only; no runtime change).
 
 ### Deprecated
 
@@ -24,7 +30,7 @@ https://github.com/ufal/whisper_streaming
 ### Fixed
 
 - Suppressed noisy pkg_resources DeprecationWarning via optional env var (SUPPRESS_PKG_RES_WARN=0 to disable) – no runtime behavior change.
- - (Phase 5) Direct PCM16→float32 ingestion path completed; removes prior decode overhead (no protocol change).
+- (Phase 5) Direct PCM16→float32 ingestion path completed; removes prior decode overhead (no protocol change).
 
 ### Security
 

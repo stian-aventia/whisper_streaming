@@ -124,7 +124,9 @@ Success Criteria:
 
 - [x] Remove `--model_dir`; single `--model` now handles builtin size, path or HF repo id.
 - [x] Bug: Server exits entirely when client/stream disconnects. Keep listening on the port and accept new connections until explicit shutdown.
-- [ ] Improved Ctrl+C (SIGINT) handling: clean shutdown, release socket, consistent final log line (no residual globals).
+- [x] Improved Ctrl+C (SIGINT) handling: clean shutdown, release socket, consistent final log line (no residual globals).
+
+Phase 4 core items completed (further refinements, if any, will be tracked separately).
 
 ## Phase 5: Audio Ingestion Optimization
 

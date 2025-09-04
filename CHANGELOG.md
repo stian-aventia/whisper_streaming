@@ -11,11 +11,9 @@ https://github.com/ufal/whisper_streaming
 
 ### Added
 
-- (planned) Direct PCM16→float ingestion (Phase 4) – not yet implemented.
+- (planned) Direct PCM16→float ingestion (Phase 5) – not yet implemented.
 
 ### Changed
-
-- Friendlier log message for client connection resets (WinError 10054 / ECONNRESET) now reported as "Unexpected client disconnect" (previously generic error line).
 
 ### Deprecated
 
@@ -23,11 +21,35 @@ https://github.com/ufal/whisper_streaming
 
 ### Fixed
 
+### Security
+
+## [1.5.0] - 2025-09-04
+
+### Added
+
+- Improved operational robustness: persistent server loop after client disconnect.
+
+### Changed
+
+- Friendlier log message for client connection resets (WinError 10054 / ECONNRESET) now reported as "Unexpected client disconnect" including peer address.
+
+### Deprecated
+
+- (none)
+
+### Removed
+
+- (none)
+
+### Fixed
+
 - Server now continues listening after client disconnect (persistent accept loop).
 - Graceful Ctrl+C/SIGTERM: single final 'Server stopped gracefully' line; cleaner socket shutdown.
-- Fixed Windows Ctrl+C not exiting promptly (added accept() timeout & corrected signal handler signature).
+- Windows Ctrl+C exit reliability (accept() timeout + corrected signal handler).
 
 ### Security
+
+- Nothing.
 
 ## [1.4.0] - 2025-09-04
 
@@ -171,7 +193,8 @@ Use: Added, Changed, Deprecated, Removed, Fixed, Security.
 
 ## Link References
 
-[Unreleased]: https://github.com/stian-aventia/whisper_streaming/compare/v1.4.0...HEAD
+[Unreleased]: https://github.com/stian-aventia/whisper_streaming/compare/v1.5.0...HEAD
+[1.5.0]: https://github.com/stian-aventia/whisper_streaming/compare/v1.4.0...v1.5.0
 [1.4.0]: https://github.com/stian-aventia/whisper_streaming/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/stian-aventia/whisper_streaming/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/stian-aventia/whisper_streaming/compare/v1.1.0...v1.2.0

@@ -1,6 +1,6 @@
 # Whisper Streaming for Wowza Streaming Engine
 
-Current release: 1.3.0 (Phase 3 completion – source-stream removal & image slimming). See `CHANGELOG.md` for details.
+Current release: 1.5.0 (model param consolidation + persistent server loop + graceful shutdown). See `CHANGELOG.md` for details.
 
 Dockerized low-latency Whisper transcription service for integration with the Wowza Streaming Engine module [wse-plugin-caption-handlers](https://github.com/WowzaMediaSystems/wse-plugin-caption-handlers).
 

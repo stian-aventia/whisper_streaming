@@ -152,7 +152,7 @@ Phase 4 core items completed.
 ## Phase 8: Testing & Observability (Non-breaking)
 
 - [ ] Add lightweight smoke script to feed a few seconds of test PCM and assert non-empty JSON lines.
-- [ ] Log model load time + average process_iter latency every N iterations.
+- [ ] Log model load time + average process_iter latency every N iterations (ENV gate e.g. METRICS_INTERVAL; defer until tuning multi-client or beam/vad settings needed).
 - [ ] (Optional) Add environment variable override for log level.
 
 ## Phase 9: Documentation

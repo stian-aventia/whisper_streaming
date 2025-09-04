@@ -21,6 +21,7 @@ https://github.com/ufal/whisper_streaming
 - Minor internal cleanup: removed unused server variables (`size`, `min_chunk`) and legacy `io` import (no functional change).
 - Added type hints for PCM decode + receive loop helper (internal only; no runtime change).
 - Build script `local_build.ps1` now single-arch by default; multi-arch requires `-MultiArch` (optional `-Push`) using buildx.
+- Run script `local_run.ps1` now aligns defaults with entrypoint and supports GPU flag, cache mount, extra env vars.
 
 ### Deprecated
 
@@ -32,6 +33,7 @@ https://github.com/ufal/whisper_streaming
 
 - Suppressed noisy pkg_resources DeprecationWarning via optional env var (SUPPRESS_PKG_RES_WARN=0 to disable) – no runtime behavior change.
 - (Phase 5) Direct PCM16→float32 ingestion path completed; removes prior decode overhead (no protocol change).
+- `local_run.ps1` port mapping argument construction (previous inline backtick style could drop -p value in some shells).
 
 ### Security
 

@@ -123,7 +123,7 @@ Success Criteria:
 ## Phase 4: Faster-Whisper Model Parameter Consolidation
 
 - [x] Remove `--model_dir`; single `--model` now handles builtin size, path or HF repo id.
-- [ ] Bug: Server exits entirely when client/stream disconnects. Keep listening on the port and accept new connections until explicit shutdown.
+- [x] Bug: Server exits entirely when client/stream disconnects. Keep listening on the port and accept new connections until explicit shutdown.
 - [ ] Improved Ctrl+C (SIGINT) handling: clean shutdown, release socket, consistent final log line (no residual globals).
 
 ## Phase 5: Audio Ingestion Optimization

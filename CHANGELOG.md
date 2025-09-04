@@ -15,11 +15,15 @@ https://github.com/ufal/whisper_streaming
 
 ### Changed
 
+- Friendlier log message for client connection resets (WinError 10054 / ECONNRESET) now reported as "Unexpected client disconnect" (previously generic error line).
+
 ### Deprecated
 
 ### Removed
 
 ### Fixed
+
+- Server now continues listening after client disconnect (persistent accept loop).
 
 ### Security
 
@@ -32,6 +36,7 @@ https://github.com/ufal/whisper_streaming
 ### Changed
 
 - Model selection consolidated: single `--model` parameter covers size/path/HF repo; logging clarified (cache directory only shown when explicitly provided).
+- Disconnect logging now includes client peer address (ip:port).
 
 ### Deprecated
 

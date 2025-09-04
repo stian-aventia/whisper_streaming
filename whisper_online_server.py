@@ -24,6 +24,7 @@ args = parser.parse_args()
 set_logging(args,logger,other="")
 
 running=True
+server_socket = None  # will be set after socket creation
 # setting whisper object by args 
 
 SAMPLING_RATE = args.sampling_rate
@@ -204,9 +205,13 @@ def worker_thread(*_a, **_kw):
     raise RuntimeError("worker_thread not available")
 
 def stop(self, signum=None, frame=None):
-    global running,server_socket
-    server_socket.close()
+    global running, server_socket
     running = False
+    if server_socket is not None:
+        try:
+            server_socket.close()
+        except OSError:
+            pass
 
 
 
@@ -216,22 +221,49 @@ signal.signal(signal.SIGINT, stop)
 signal.signal(signal.SIGTERM, stop)
 
 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-    global server_socket
     server_socket = s
     s.bind((args.host, args.port))
     s.listen(1)
     logger.info('Listening on'+str((args.host, args.port)))
+    last_client_addr = None
     while running:
         try:
-            conn, addr = s.accept()
+            try:
+                conn, addr = s.accept()
+            except OSError as e:
+                if not running:
+                    break  # socket was closed due to shutdown
+                logger.error(f"Socket accept error: {e}; continuing")
+                continue
             logger.debug('Connected to client on {}'.format(addr))
+            last_client_addr = addr
             connection = Connection(conn)
             proc = ServerProcessor(connection, online, args.min_chunk_size)
             proc.process()
-            conn.close()
-        except socket.error as e:
-          break # Exit the loop on socket errors            
-        logger.debug('Connection to client closed{}'.format(addr))
+            try:
+                conn.close()
+            except OSError:
+                pass
+            logger.debug('Connection to client closed {}'.format(addr))
+        except Exception as e:
+            if not running:
+                break
+            import errno
+            # Normalize common connection reset scenarios (Windows WinError 10054 / POSIX ECONNRESET)
+            win_err = getattr(e, 'winerror', None)
+            err_no = getattr(e, 'errno', None)
+            msg = str(e)
+            if win_err == 10054 or err_no == errno.ECONNRESET or '10054' in msg or 'ECONNRESET' in msg:
+                if last_client_addr:
+                    logger.info(f"Unexpected client disconnect (connection reset) peer={last_client_addr[0]}:{last_client_addr[1]}")
+                else:
+                    logger.info("Unexpected client disconnect (connection reset)")
+            else:
+                if last_client_addr:
+                    logger.error(f"Unexpected server loop error: {e} peer={last_client_addr[0]}:{last_client_addr[1]}; continuing")
+                else:
+                    logger.error(f"Unexpected server loop error: {e}; continuing")
+            continue
 
 logger.info('Server Stopped')
 running=False

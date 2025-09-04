@@ -20,6 +20,7 @@ https://github.com/ufal/whisper_streaming
 
 - Minor internal cleanup: removed unused server variables (`size`, `min_chunk`) and legacy `io` import (no functional change).
 - Added type hints for PCM decode + receive loop helper (internal only; no runtime change).
+- Build script `local_build.ps1` now single-arch by default; multi-arch requires `-MultiArch` (optional `-Push`) using buildx.
 
 ### Deprecated
 

@@ -108,7 +108,9 @@ def pcm16le_bytes_to_float32(raw_bytes):
         raw_bytes = raw_bytes[:-1]
     if not raw_bytes:
         return None
-    audio = np.frombuffer(raw_bytes, dtype='<i2').astype(np.float32) / 32768.0
+    # astype produces a float32 copy; in-place scaling avoids an extra temporary from division
+    audio = np.frombuffer(raw_bytes, dtype='<i2').astype(np.float32)
+    audio *= (1.0/32768.0)
     return audio
 
 # wraps socket and ASR object, and serves one client connection. 
@@ -145,8 +147,9 @@ class ServerProcessor:
         # blocks operation if less than self.min_chunk seconds is available
         # unblocks if connection is closed or a chunk is available
         out = []
-        minlimit = self.min_chunk*SAMPLING_RATE
-        while running and sum(len(x) for x in out) < minlimit:
+        minlimit = self.min_chunk * SAMPLING_RATE
+        samples_accum = 0  # incremental length to avoid repeated sum()
+        while running and samples_accum < minlimit:
             raw_bytes = self.connection.non_blocking_receive_audio()
             if not raw_bytes:
                 break
@@ -155,12 +158,16 @@ class ServerProcessor:
             if audio is None or audio.size == 0:
                 break
             out.append(audio)
+            samples_accum += audio.shape[0]
         if not out:
             return None
-        conc = np.concatenate(out)
-        if self.is_first and len(conc) < minlimit:
+        # If first chunk and below minimum threshold, wait for more audio
+        if self.is_first and samples_accum < minlimit:
             return None
         self.is_first = False
+        # Fast path: single array collected
+        if len(out) == 1:
+            return out[0]
         return np.concatenate(out)
 
     def format_output_transcript(self,o):

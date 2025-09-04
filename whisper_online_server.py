@@ -61,6 +61,9 @@ except Exception as e:
 import line_packet
 import socket
 
+# Oversized packet guard (Phase 5): configurable threshold (default 5MB)
+MAX_SINGLE_RECV_BYTES = int(os.environ.get("MAX_SINGLE_RECV_BYTES", str(5 * 1024 * 1024)))
+
 class Connection:
     '''it wraps conn object'''
     PACKET_SIZE = 32000*5*60 # 5 minutes # was: 65536
@@ -81,6 +84,10 @@ class Connection:
     def non_blocking_receive_audio(self):
         try:
             r = self.conn.recv(self.PACKET_SIZE)
+            if r and len(r) > MAX_SINGLE_RECV_BYTES:
+                logger.warning(
+                    f"Oversized audio packet received: {len(r)/1024/1024:.2f} MB (threshold {MAX_SINGLE_RECV_BYTES/1024/1024:.2f} MB)"
+                )
             return r
         except ConnectionResetError:
             return None
@@ -148,12 +155,6 @@ class ServerProcessor:
             if audio is None or audio.size == 0:
                 break
             out.append(audio)
-            global direct_decode_logged
-            if 'direct_decode_logged' not in globals():
-                direct_decode_logged = False
-            if not direct_decode_logged:
-                logger.debug("Using direct PCM16 -> float32 decoder")
-                direct_decode_logged = True
         if not out:
             return None
         conc = np.concatenate(out)

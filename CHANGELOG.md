@@ -10,8 +10,8 @@ https://github.com/ufal/whisper_streaming
 ## [Unreleased]
 
 ### Added
-
-- (planned) Direct PCM16→float ingestion (Phase 5) – not yet implemented.
+ - Oversized audio packet guard (warning if single recv exceeds default 5MB; configurable via `MAX_SINGLE_RECV_BYTES`).
+ - Minimal PCM chunk validation (drops trailing odd byte in packet; logs once per occurrence).
 
 ### Changed
 
@@ -24,6 +24,7 @@ https://github.com/ufal/whisper_streaming
 ### Fixed
 
 - Suppressed noisy pkg_resources DeprecationWarning via optional env var (SUPPRESS_PKG_RES_WARN=0 to disable) – no runtime behavior change.
+ - (Phase 5) Direct PCM16→float32 ingestion path completed; removes prior decode overhead (no protocol change).
 
 ### Security
 

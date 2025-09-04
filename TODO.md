@@ -132,8 +132,8 @@ Phase 4 core items completed.
 
 - [x] Replace per-chunk RAW decode pipeline (soundfile + librosa) with direct PCM16 → float32 via `np.frombuffer`.
 - [x] Replace librosa in streaming path; warm-up now silent (no file dependency).
-- [ ] Add minimal validation: ensure even byte length; discard leftover partial sample if any.
-- [ ] Add guard for oversized single recv (log warning if > X MB configurable?).
+- [x] Add minimal validation: ensure even byte length; discard leftover partial sample if any (implemented in `pcm16le_bytes_to_float32`).
+- [x] Add guard for oversized single recv (logs warning if > threshold; env `MAX_SINGLE_RECV_BYTES` overrides default 5MB).
 
 ## Phase 6: Server Loop Hygiene
 

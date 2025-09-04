@@ -24,7 +24,7 @@ https://github.com/ufal/whisper_streaming
 - CLI flag `--warmup-file` and bundled sample `samples_jfk.wav` (replaced by internal silent warm-up for local backend).
 
 ### Fixed
-- N/A
+ - Docker runtime script failure on Windows clones: normalize line endings & chmod entrypoint.
 
 ### Security
 - N/A

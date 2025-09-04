@@ -32,6 +32,9 @@ COPY *.py .
 COPY entrypoint.sh .
 COPY LICENSE.txt .
 
+# Normalize potential Windows line endings and ensure executable bit for entrypoint
+RUN sed -i 's/\r$//' /app/entrypoint.sh && chmod +x /app/entrypoint.sh
+
 EXPOSE 3000
 
 CMD ["/app/entrypoint.sh"]

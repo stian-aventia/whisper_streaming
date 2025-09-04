@@ -13,7 +13,7 @@ Scope: Minimal refactor to support only required functionality for live transcri
 - [x] Remove `VACOnlineASRProcessor` (Silero VAD controller) and related args (`--vac`, `--vac-chunk-size`).
 - [x] Restrict `--backend` choices to: `faster-whisper`, `openai-api`.
 - [x] Remove `--report-language` option (unused); use existing --lan for output language fallback 'en'.
-- [ ] Keep `--vad` flag (only meaningful for faster-whisper; ignored with warning for OpenAI).
+- [x] Keep `--vad` flag (only meaningful for faster-whisper; ignored for OpenAI) and set default enabled (default=True).
 - [ ] Update `CHANGELOG` (Unreleased) with Removed/Changed entries (mark internal only; no protocol change).
 
 ## Phase 2: Audio Ingestion Optimization

@@ -9,22 +9,24 @@ https://github.com/ufal/whisper_streaming
 
 ## [Unreleased]
 ### Added
-- (placeholder) Initial fork setup (no functional changes yet)
+- (internal) Refactor groundwork (cleanup branch scaffolding).
 
 ### Changed
-- Nothing yet.
+- Default for `--vad` flag set to enabled (True) for local faster-whisper backend. (No protocol/output change.)
 
 ### Deprecated
 - Nothing.
 
 ### Removed
-- Nothing.
+- Legacy backends: `WhisperTimestampedASR`, `MLXWhisper`.
+- Silero-based VAC processing (`VACOnlineASRProcessor`) and related CLI flags `--vac`, `--vac-chunk-size`.
+- CLI flag `--report-language` (language field now derives from `--lan` with fallback to 'en').
 
 ### Fixed
-- Nothing.
+- N/A
 
 ### Security
-- Nothing.
+- N/A
 
 ## [1.0.0] - 2025-07-15
 ### Added

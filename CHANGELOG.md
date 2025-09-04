@@ -19,7 +19,11 @@ https://github.com/ufal/whisper_streaming
 
 ### Removed
 
+- (Unreleased) Dependency: `librosa` (stream ingestion now uses direct PCM16→float32 path).
+
 ### Fixed
+
+- Suppressed noisy pkg_resources DeprecationWarning via optional env var (SUPPRESS_PKG_RES_WARN=0 to disable) – no runtime behavior change.
 
 ### Security
 

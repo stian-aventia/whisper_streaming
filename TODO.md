@@ -128,12 +128,10 @@ Success Criteria:
 
 Phase 4 core items completed.
 
-Phase 4 core items completed (further refinements, if any, will be tracked separately).
-
 ## Phase 5: Audio Ingestion Optimization
 
 - [x] Replace per-chunk RAW decode pipeline (soundfile + librosa) with direct PCM16 → float32 via `np.frombuffer`.
-- [ ] (future) Replace librosa in streaming path; warm-up now silent (no file dependency).
+- [x] Replace librosa in streaming path; warm-up now silent (no file dependency).
 - [ ] Add minimal validation: ensure even byte length; discard leftover partial sample if any.
 - [ ] Add guard for oversized single recv (log warning if > X MB configurable?).
 

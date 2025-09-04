@@ -5,12 +5,11 @@
 ##
 import sys
 import numpy as np
-import librosa  # kept for server receive path (librosa.load on raw buffer)
 import time
 import logging
 
 import io
-import soundfile as sf
+import soundfile as sf  # still needed for OpenAI API buffer encoding
 import math
 
 logger = logging.getLogger(__name__)

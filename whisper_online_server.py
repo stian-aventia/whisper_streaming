@@ -5,12 +5,22 @@ import sys
 import argparse
 import os
 import logging
+import warnings
 import numpy as np
 import signal
 import datetime
 import json
 
 logger = logging.getLogger(__name__)
+
+# Suppress noisy pkg_resources deprecation warning (ctranslate2 dependency path)
+# Toggle with SUPPRESS_PKG_RES_WARN=0 to re-enable.
+if os.environ.get("SUPPRESS_PKG_RES_WARN", "1") == "1":
+    warnings.filterwarnings(
+        "ignore",
+        category=DeprecationWarning,
+        module=r"pkg_resources"
+    )
 parser = argparse.ArgumentParser()
 
 # server options
@@ -142,7 +152,7 @@ class ServerProcessor:
             if 'direct_decode_logged' not in globals():
                 direct_decode_logged = False
             if not direct_decode_logged:
-                logger.debug("Using direct PCM16 -> float32 decoder (Phase 5)")
+                logger.debug("Using direct PCM16 -> float32 decoder")
                 direct_decode_logged = True
         if not out:
             return None

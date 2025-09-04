@@ -9,13 +9,29 @@ https://github.com/ufal/whisper_streaming
 
 ## [Unreleased]
 ### Added
+- Nothing yet.
+
+### Changed
+- Nothing yet.
+
+### Deprecated
+- Nothing.
+
+### Removed
+- Nothing.
+
+### Fixed
+- Nothing.
+
+### Security
+- Nothing.
+
+## [1.1.0] - 2025-09-04
+### Added
 - (internal) Refactor groundwork (cleanup branch scaffolding).
 
 ### Changed
 - Default for `--vad` flag set to enabled (True) for local faster-whisper backend. (No protocol/output change.)
-
-### Deprecated
-- Nothing.
 
 ### Removed
 - Legacy backends: `WhisperTimestampedASR`, `MLXWhisper`.
@@ -24,7 +40,7 @@ https://github.com/ufal/whisper_streaming
 - CLI flag `--warmup-file` and bundled sample `samples_jfk.wav` (replaced by internal silent warm-up for local backend).
 
 ### Fixed
- - Docker runtime script failure on Windows clones: normalize line endings & chmod entrypoint.
+- Docker runtime script failure on Windows clones: normalize line endings & chmod entrypoint.
 
 ### Security
 - N/A
@@ -48,6 +64,7 @@ https://github.com/ufal/whisper_streaming
 Use: Added, Changed, Deprecated, Removed, Fixed, Security.
 
 ## Link References
-[Unreleased]: https://github.com/stian-aventia/whisper_streaming/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/stian-aventia/whisper_streaming/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/stian-aventia/whisper_streaming/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/ufal/whisper_streaming/tree/e80686ec07db213bdb3fcabcb7092b3e27e22bf5
 

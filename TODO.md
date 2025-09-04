@@ -89,12 +89,12 @@ Scope:
 
 - [x] Remove `--source-stream` argument and related environment variable handling (entrypoint + server code + compose comments).
 - [x] Delete / refactor out: `run_subprocess`, `worker_thread`, ffmpeg command assembly, thread launch logic in `whisper_online_server.py`.
-- Remove dependency on `ffmpeg` and `netcat` from Dockerfile once feature removed (move apt purge to same commit if safe, else subsequent commit in phase).
-- Remove standalone file simulation & offline modes:
-  - Eliminate `whisper_online.py` CLI execution block (or split processor/backends into a module file and delete the executable parts).
-  - Remove arguments: `audio_path`, `--offline`, `--comp_unaware`, `--start_at`.
-  - Prune logic branches in `process_iter` usage tied to simulation timing.
-- Update docs (`README.md`, `README_ORG.md`, `TEST.md`) to describe only server usage (TCP raw PCM input) and external ffmpeg piping examples.
+- [x] Remove dependency on `ffmpeg` and `netcat` from Dockerfile once feature removed (move apt purge to same commit if safe, else subsequent commit in phase).
+- [x] Remove standalone file simulation & offline modes:
+  - [x] Eliminate `whisper_online.py` CLI execution block.
+  - [x] Remove arguments: `audio_path`, `--offline`, `--comp_unaware`, `--start_at`.
+  - [x] Prune logic branches tied to simulation timing.
+- [x] Update docs (`README.md`, `README_ORG.md`, `TEST.md`) to describe only server usage (TCP raw PCM input) and external ffmpeg piping examples. (README + TEST updated; README_ORG left as archival.)
 - Update CHANGELOG (Unreleased): Removed (source-stream internal ingest, offline simulation modes & related CLI args, file-based runner).
 - Adjust Docker image (drop ffmpeg/netcat). Provide external usage example for pulling RTMP outside container.
 
@@ -120,34 +120,40 @@ Success Criteria:
 - Server still starts and processes incoming raw PCM.
 - CHANGELOG reflects removals.
 
-## Phase 4: Audio Ingestion Optimization (renumbered)
+## Phase 4: Faster-Whisper Model Parameter Consolidation
+
+- [ ] Remove `--model_dir`; keep a single `--model` argument whose value is passed directly as `model_size_or_path` to `WhisperModel`. Accept values: Systran model name, local path, or HuggingFace repo id (e.g. `NbAiLab/nb-whisper-large`). Retain `--model_cache_dir` only for download root. Update README + CHANGELOG; add transitional note about removed flag.
+- [ ] Bug: Server exits entirely when client/stream disconnects. Keep listening on the port and accept new connections until explicit shutdown.
+- [ ] Improved Ctrl+C (SIGINT) handling: clean shutdown, release socket, consistent final log line (no residual globals).
+
+## Phase 5: Audio Ingestion Optimization
 
 - [ ] Replace per-chunk RAW decode pipeline (soundfile + librosa) with direct PCM16 → float32 via `np.frombuffer`.
 - [ ] (future) Replace librosa in streaming path; warm-up now silent (no file dependency).
 - [ ] Add minimal validation: ensure even byte length; discard leftover partial sample if any.
 - [ ] Add guard for oversized single recv (log warning if > X MB configurable?).
 
-## Phase 5: Server Loop Hygiene
+## Phase 6: Server Loop Hygiene
 
 - [ ] Clarify receive loop semantics: distinguish "no data yet" vs "stream ended" return values.
 - [ ] Add socket timeout (e.g. 30s) to avoid hanging connections.
 - [ ] Increase `listen()` backlog (e.g. 5) for modest concurrency (still serial handling unless threaded later).
 - [ ] Prepare hooks for optional future multi-client handling (no implementation yet).
 
-## Phase 6: Internal Cleanup
+## Phase 7: Internal Cleanup
 
 - [ ] Remove global variables where feasible (`running`, `server_socket`) – encapsulate in a Server class.
 - [ ] Narrow imports (delay heavyweight imports until needed; e.g. OpenAI only when that backend chosen).
 - [ ] Type hints for public functions in `whisper_online_server.py` & key classes.
 - [ ] Inline small helper logic where it reduces indirection without harming clarity.
 
-## Phase 7: Testing & Observability (Non-breaking)
+## Phase 8: Testing & Observability (Non-breaking)
 
 - [ ] Add lightweight smoke script to feed a few seconds of test PCM and assert non-empty JSON lines.
 - [ ] Log model load time + average process_iter latency every N iterations.
 - [ ] (Optional) Add environment variable override for log level.
 
-## Phase 8: Documentation
+## Phase 9: Documentation
 
 - [ ] Update README to reflect supported backends only.
 - [ ] Document silent warm-up and required input audio format (16kHz mono PCM16LE streaming).
@@ -162,13 +168,14 @@ Success Criteria:
 
 ### Deferred (Post v1.2) Container / Image Improvements
 
-- Switch base image to `python:3.12-slim` (verify ffmpeg availability or add minimal apt layer) to shrink size.
+- (done) Switch base image to `python:3.12-slim` (libsndfile1 installed for soundfile).
 - Add `.dockerignore` to exclude model snapshots, caches, venv, pyc files from build context.
 - Consider multi-stage build (builder for wheels, runtime slim) and/or separate GPU Dockerfile with torch + cudnn.
 - Add simple healthcheck (e.g. TCP connect script or lightweight Python probe) for orchestration readiness.
 - Pin base image by digest for reproducibility & to reduce vulnerability scan noise between patch releases.
 - Optionally generate requirements lock (`pip compile` / hashes) once dependency set stabilizes.
 - Explore dropping `hf_xet` if confirmed unused at runtime (follow-up verification required).
+- Review and remove temporary `setuptools<81` pin once ctranslate2/faster-whisper drop pkg_resources usage.
 - Remove `--source-stream` ingestion path: delete ffmpeg/ncat runtime dependency, associated thread + subprocess helpers in `whisper_online_server.py`, and apt installs (ffmpeg, netcat) from Dockerfile; require external ffmpeg piping instead (will further slim image). (Planned after confirming no internal usage.)
 
 ## Risk / Mitigation

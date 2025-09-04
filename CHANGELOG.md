@@ -15,7 +15,26 @@ https://github.com/ufal/whisper_streaming
 
 ### Changed
 
+### Deprecated
+
+### Removed
+
+### Fixed
+
+### Security
+
+## [1.3.0] - 2025-09-04
+
+### Added
+
+- Consolidated manual Windows test instructions into primary README (previously `TEST.md`).
+
+### Changed
+
 - Internal server simplified: removed dormant source-stream code paths (ffmpeg thread logic).
+- Docker image slimmer: dropped runtime installation of ffmpeg and netcat (external piping required).
+- Base image switched to python:3.12-slim (added libsndfile1 only).
+- Documentation: merged `TEST.md` manual guide into primary `README.md` (removed separate file for clarity).
 
 ### Deprecated
 
@@ -24,6 +43,10 @@ https://github.com/ufal/whisper_streaming
 ### Removed
 
 - `--source-stream` argument and internal ffmpeg/netcat ingestion pipeline.
+- Bundled ffmpeg and netcat from container image.
+- Offline/simulation CLI paths in `whisper_online.py` (module is now server-only support code).
+- Unused line receive helpers (`receive_one_line`, `receive_lines`) and `Connection.receive_lines` method.
+- Replaced local_build.sh / local_run.sh with Windows PowerShell scripts `local_build.ps1` and `local_run.ps1`.
 
 ### Fixed
 
@@ -115,7 +138,8 @@ Use: Added, Changed, Deprecated, Removed, Fixed, Security.
 
 ## Link References
 
-[Unreleased]: https://github.com/stian-aventia/whisper_streaming/compare/v1.2.0...HEAD
+[Unreleased]: https://github.com/stian-aventia/whisper_streaming/compare/v1.3.0...HEAD
+[1.3.0]: https://github.com/stian-aventia/whisper_streaming/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/stian-aventia/whisper_streaming/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/stian-aventia/whisper_streaming/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/ufal/whisper_streaming/tree/e80686ec07db213bdb3fcabcb7092b3e27e22bf5

@@ -2,14 +2,7 @@
 ## This code and all components (c) Copyright 2006 - 2025, Wowza Media Systems, LLC. All rights reserved.
 ## This code is licensed pursuant to the Wowza Public License version 1.0, available at www.wowza.com/legal.
 ##
-FROM python:3.12-bookworm
-
-ARG DEBIAN_FRONTEND=noninteractive
-
-RUN apt update && apt install -y --no-install-recommends \
-    ffmpeg \
-    netcat-traditional \
-    && rm -rf /var/lib/apt/lists/*
+FROM python:3.12-slim
 
 # Install only the project requirements (sentence tokenizer deps already pruned)
 COPY requirements.txt /tmp/requirements.txt
@@ -23,8 +16,11 @@ RUN pip install --no-cache-dir -r /tmp/requirements.txt
 # RUN apt update && apt install cudnn9-cuda-12 -y
 #
 
-## (Removed) explicit installs of libs now handled via requirements.txt
-# Retained hf_xet if kept in requirements for legacy reasons.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libsndfile1 \
+    && rm -rf /var/lib/apt/lists/*
+
+## Dependencies installed via requirements.txt
 
 # create a working directory
 RUN mkdir /app
@@ -32,8 +28,6 @@ WORKDIR /app
 
 COPY *.py .
 COPY entrypoint.sh .
-COPY LICENSE.txt .
-COPY whisper_online_server.py .
 
 # Normalize potential Windows line endings and ensure executable bit for entrypoint
 RUN sed -i 's/\r$//' /app/entrypoint.sh && chmod +x /app/entrypoint.sh

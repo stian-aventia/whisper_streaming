@@ -66,10 +66,6 @@ class Connection:
         line_packet.send_one_line(self.conn, line)
         self.last_line = line
 
-    def receive_lines(self):
-        in_line = line_packet.receive_lines(self.conn)
-        return in_line
-
     def non_blocking_receive_audio(self):
         try:
             r = self.conn.recv(self.PACKET_SIZE)
@@ -202,10 +198,10 @@ class ServerProcessor:
             logger.info("broken pipe -- connection closed?")
 
 def run_subprocess(*_a, **_kw):
-    raise RuntimeError("run_subprocess removed (source-stream ingestion deprecated)")
+    raise RuntimeError("run_subprocess not available")
 
 def worker_thread(*_a, **_kw):
-    raise RuntimeError("worker_thread removed (source-stream ingestion deprecated)")
+    raise RuntimeError("worker_thread not available")
 
 def stop(self, signum=None, frame=None):
     global running,server_socket

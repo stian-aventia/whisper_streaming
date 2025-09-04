@@ -5,8 +5,7 @@
 ##
 import sys
 import numpy as np
-import librosa
-from functools import lru_cache
+import librosa  # kept for server receive path (librosa.load on raw buffer)
 import time
 import logging
 
@@ -17,17 +16,7 @@ import math
 logger = logging.getLogger(__name__)
 SAMPLING_RATE = 16000 #default
 
-@lru_cache(10**6)
-def load_audio(fname):
-    a, _ = librosa.load(fname, sr=SAMPLING_RATE, dtype=np.float32)
-    return a
-
-def load_audio_chunk(fname, beg, end):
-    audio = load_audio(fname)
-    beg_s = int(beg*SAMPLING_RATE)
-    end_s = int(end*SAMPLING_RATE)
-    return audio[beg_s:end_s]
-
+"""Core ASR backend classes and streaming processor (server usage)."""
 
 # Whisper backend
 
@@ -347,7 +336,7 @@ class OnlineASRProcessor:
         the_rest = self.to_flush(self.transcript_buffer.complete())
         logger.debug(f"INCOMPLETE: {the_rest}")
 
-        # segment-based trimming only (sentence mode removed)
+        # segment-based trimming only
         if len(self.audio_buffer)/SAMPLING_RATE > SEGMENT_TRIM_SEC:
             self.chunk_completed_segment(res)
             logger.debug("chunking segment")
@@ -417,7 +406,7 @@ class OnlineASRProcessor:
 
 
 def add_shared_args(parser):
-    """shared args for simulation (this entry point) and server
+    """Shared args for server.
     parser: argparse.ArgumentParser object
     """
     parser.add_argument('--min-chunk-size', type=float, default=1.0, help='Minimum audio chunk size in seconds. It waits up to this time to do processing. If the processing takes shorter time, it waits, otherwise it processes the whole segment that was received by this time.')
@@ -428,7 +417,7 @@ def add_shared_args(parser):
     parser.add_argument('--task', type=str, default='transcribe', choices=["transcribe","translate"],help="Transcribe or translate.")
     parser.add_argument('--backend', type=str, default="faster-whisper", choices=["faster-whisper", "openai-api"],help='Backend: faster-whisper (local) or openai-api (remote).')
     parser.add_argument('--vad', action="store_true", default=True, help='Use VAD = voice activity detection (default: enabled).')
-    # Buffer trimming options removed: always segment with fixed 15s threshold.
+    # Segment trimming fixed at 15s threshold.
     parser.add_argument("-l", "--log-level", dest="log_level", choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'], help="Set the log level", default='DEBUG')
     parser.add_argument("--sampling_rate", type=int, default=16000)
     parser.add_argument("--use_gpu", type=lambda x: (str(x).lower() in ['true','1', 'yes']), default=False, help='Use the GPU')
@@ -472,127 +461,4 @@ def set_logging(args,logger,other="_server"):
     logging.getLogger("whisper_online"+other).setLevel(args.log_level)
 #    logging.getLogger("whisper_online_server").setLevel(args.log_level)
 
-
-
-if __name__ == "__main__":
-
-    import argparse
-    parser = argparse.ArgumentParser()
-    parser.add_argument('audio_path', type=str, help="Filename of 16kHz mono channel wav, on which live streaming is simulated.")
-    add_shared_args(parser)
-    parser.add_argument('--start_at', type=float, default=0.0, help='Start processing audio at this time.')
-    parser.add_argument('--offline', action="store_true", default=False, help='Offline mode.')
-    parser.add_argument('--comp_unaware', action="store_true", default=False, help='Computationally unaware simulation.')
-    
-    args = parser.parse_args()
-
-    # reset to store stderr to different file stream, e.g. open(os.devnull,"w")
-    logfile = sys.stderr
-
-    if args.offline and args.comp_unaware:
-        logger.error("No or one option from --offline and --comp_unaware are available, not both. Exiting.")
-        sys.exit(1)
-
-#    if args.log_level:
-#        logging.basicConfig(format='whisper-%(levelname)s:%(name)s: %(message)s',
-#                            level=getattr(logging, args.log_level))
-
-    set_logging(args,logger)
-
-    audio_path = args.audio_path
-
-    SAMPLING_RATE = args.sampling_rate
-    duration = len(load_audio(audio_path))/SAMPLING_RATE
-    logger.info("Audio duration is: %2.2f seconds" % duration)
-
-    asr, online = asr_factory(args, logfile=logfile)
-    min_chunk = args.min_chunk_size
-
-    # load the audio into the LRU cache before we start the timer
-    a = load_audio_chunk(audio_path,0,1)
-
-    # warm up the ASR because the very first transcribe takes much more time than the other
-    asr.transcribe(a)
-
-    beg = args.start_at
-    start = time.time()-beg
-
-    def output_transcript(o, now=None):
-        # output format in stdout is like:
-        # 4186.3606 0 1720 Takhle to je
-        # - the first three words are:
-        #    - emission time from beginning of processing, in milliseconds
-        #    - beg and end timestamp of the text segment, as estimated by Whisper model. The timestamps are not accurate, but they're useful anyway
-        # - the next words: segment transcript
-        if now is None:
-            now = time.time()-start
-        if o[0] is not None:
-            print("%1.4f %1.0f %1.0f %s" % (now*1000, o[0]*1000,o[1]*1000,o[2]),file=logfile,flush=True)
-            print("%1.4f %1.0f %1.0f %s" % (now*1000, o[0]*1000,o[1]*1000,o[2]),flush=True)
-        else:
-            # No text, so no output
-            pass
-
-    if args.offline: ## offline mode processing (for testing/debugging)
-        a = load_audio(audio_path)
-        online.insert_audio_chunk(a)
-        try:
-            o = online.process_iter()
-        except AssertionError as e:
-            logger.error(f"assertion error: {repr(e)}")
-        else:
-            output_transcript(o)
-        now = None
-    elif args.comp_unaware:  # computational unaware mode 
-        end = beg + min_chunk
-        while True:
-            a = load_audio_chunk(audio_path,beg,end)
-            online.insert_audio_chunk(a)
-            try:
-                o = online.process_iter()
-            except AssertionError as e:
-                logger.error(f"assertion error: {repr(e)}")
-                pass
-            else:
-                output_transcript(o, now=end)
-
-            logger.debug(f"## last processed {end:.2f}s")
-
-            if end >= duration:
-                break
-            
-            beg = end
-            
-            if end + min_chunk > duration:
-                end = duration
-            else:
-                end += min_chunk
-        now = duration
-
-    else: # online = simultaneous mode
-        end = 0
-        while True:
-            now = time.time() - start
-            if now < end+min_chunk:
-                time.sleep(min_chunk+end-now)
-            end = time.time() - start
-            a = load_audio_chunk(audio_path,beg,end)
-            beg = end
-            online.insert_audio_chunk(a)
-
-            try:
-                o = online.process_iter()
-            except AssertionError as e:
-                logger.error(f"assertion error: {e}")
-                pass
-            else:
-                output_transcript(o)
-            now = time.time() - start
-            logger.debug(f"## last processed {end:.2f} s, now is {now:.2f}, the latency is {now-end:.2f}")
-
-            if end >= duration:
-                break
-        now = None
-
-    o = online.finish()
-    output_transcript(o, now=now)
+## (No __main__ executable section; server-only module.)

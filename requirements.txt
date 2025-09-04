@@ -5,6 +5,8 @@ faster-whisper>=1.0.0
 librosa>=0.10
 soundfile>=0.12
 openai>=1.0.0
+hf_xet  # required by faster-whisper for model download/storage
+setuptools<81  # temporary pin: avoid pkg_resources deprecation warning from ctranslate2 dependency
 
 ## Removed sentence segmentation dependencies (mosestokenizer, wtpsplit, tokenize-uk) after dropping sentence trimming mode.
 
@@ -13,7 +15,6 @@ openai>=1.0.0
 # numba     # (librosa may pull it transitively; keep unpinned unless explicitly used)
 # tqdm      # (progress bars; currently unused)
 # more-itertools  # (unused)
-hf_xet    # (installed previously; not used in code)
 # openai-whisper  # (replaced by faster-whisper backend)
 
 # Dev / tooling (uncomment as needed)

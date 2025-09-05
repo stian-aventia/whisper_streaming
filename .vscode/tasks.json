@@ -1,0 +1,36 @@
+{
+  // Simple developer tasks (run via Terminal > Run Task...)
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Create venv",
+      "type": "shell",
+      "command": "python -m venv .venv",
+      "problemMatcher": []
+    },
+    {
+      "label": "Install deps",
+      "type": "shell",
+      "command": "./.venv/Scripts/python.exe -m pip install --upgrade pip && ./.venv/Scripts/python.exe -m pip install -r requirements.txt",
+      "dependsOn": ["Create venv"],
+      "problemMatcher": []
+    },
+    {
+      "label": "Format (black + isort)",
+      "type": "shell",
+      "command": "./.venv/Scripts/python.exe -m pip install black isort && ./.venv/Scripts/python.exe -m black . && ./.venv/Scripts/python.exe -m isort .",
+      "problemMatcher": []
+    },
+    {
+      "label": "Run server (tiny no GPU force CPU)",
+      "type": "shell",
+      "command": "./.venv/Scripts/python.exe .\\whisper_online_server.py --model tiny --disable_gpu",
+      "problemMatcher": [],
+      "options": {
+        "env": {
+          "LANGUAGE": "no"
+        }
+      }
+    }
+  ]
+}

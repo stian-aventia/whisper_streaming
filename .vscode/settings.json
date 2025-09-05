@@ -1,0 +1,29 @@
+{
+  // VS Code workspace settings for newcomers (minimal Python workflow)
+  "python.defaultInterpreterPath": "${workspaceFolder}/.venv/Scripts/python.exe",
+  "editor.formatOnSave": true,
+  "editor.codeActionsOnSave": {
+    "source.organizeImports": "explicit"
+  },
+  // Use built-in Python extension formatting if Black formatter extension not installed
+  // (Black will still run on save via the extension when present)
+  "[python]": {
+    "editor.defaultFormatter": "ms-python.black-formatter"
+  },
+  "black-formatter.args": [
+    "--line-length",
+    "120"
+  ],
+  "isort.args": [
+    "--profile",
+    "black"
+  ],
+  "files.trimTrailingWhitespace": true,
+  "files.insertFinalNewline": true,
+  "terminal.integrated.defaultProfile.windows": "PowerShell",
+  "python.analysis.typeCheckingMode": "basic",
+  "python.testing.unittestEnabled": false,
+  "python.testing.pytestEnabled": false,
+  // Silence lint noise until (optional) ruff installed
+  "python.analysis.diagnosticMode": "workspace"
+}

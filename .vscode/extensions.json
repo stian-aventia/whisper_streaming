@@ -1,0 +1,16 @@
+{
+  // VS Code workspace extension recommendations for whisper_streaming
+  // Safe, lightweight tooling; no runtime dependencies introduced.
+  "recommendations": [
+    "ms-python.python",          // Python language support & debugger
+    "ms-python.vscode-pylance",  // Fast type analysis / IntelliSense
+    "ms-toolsai.jupyter",        // Optional: inspect / prototype notebooks
+    "ms-vscode.powershell",      // PowerShell editing (repo has .ps1 scripts)
+    "ms-azuretools.vscode-docker", // Dockerfile & compose syntax help
+    "GitHub.copilot",            // AI pair programming
+    "ms-python.black-formatter", // Black formatting integration
+    "ms-python.isort",           // Import sorting
+    "njpwerner.autodocstring"    // Quick docstring generation
+  ],
+  "unwantedRecommendations": []
+}

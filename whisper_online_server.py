@@ -1,43 +1,40 @@
 #!/usr/bin/env python3
-from whisper_online import *
-
-import sys
 import argparse
-import os
-import logging
-import warnings
-import numpy as np
-import signal
 import datetime
 import json
+import logging
+import os
+import signal
+import sys
+import warnings
 from typing import Optional, Union
+
+import numpy as np
+
+from whisper_online import *
 
 logger = logging.getLogger(__name__)
 
 # Suppress noisy pkg_resources deprecation warning (ctranslate2 dependency path)
 # Toggle with SUPPRESS_PKG_RES_WARN=0 to re-enable.
 if os.environ.get("SUPPRESS_PKG_RES_WARN", "1") == "1":
-    warnings.filterwarnings(
-        "ignore",
-        category=DeprecationWarning,
-        module=r"pkg_resources"
-    )
+    warnings.filterwarnings("ignore", category=DeprecationWarning, module=r"pkg_resources")
 parser = argparse.ArgumentParser()
 
 # server options
-parser.add_argument("--host", type=str, default='localhost')
+parser.add_argument("--host", type=str, default="localhost")
 parser.add_argument("--port", type=int, default=3000)
 
 # options from whisper_online
 add_shared_args(parser)
 args = parser.parse_args()
 
-set_logging(args,logger,other="")
+set_logging(args, logger, other="")
 
-running=True
+running = True
 server_socket = None  # will be set after socket creation
 shutdown_logged = False
-# setting whisper object by args 
+# setting whisper object by args
 
 SAMPLING_RATE = args.sampling_rate
 # Removed unused local aliases (size, min_chunk) to reduce namespace noise.
@@ -58,7 +55,7 @@ if args.min_chunk_size > _SEGMENT_TRIM_SEC:
 
 # Warm-up: run a short silent buffer through model so first real chunk is faster
 try:
-    if args.backend == 'faster-whisper':
+    if args.backend == "faster-whisper":
         silent = np.zeros(int(SAMPLING_RATE * 0.5), dtype=np.float32)  # 0.5s silence
         asr.transcribe(silent)
         logger.info("Model warm-up with generated silence complete.")
@@ -70,12 +67,13 @@ except Exception as e:
 
 ######### Server objects
 
-import line_packet
 import socket
 
+import line_packet
+
 # ---- Phase 6 internal constants & sentinels (no external behaviour change) ----
-NO_DATA_YET = object()       # temporary absence of data (timeout)
-STREAM_ENDED = object()      # client closed connection / reset
+NO_DATA_YET = object()  # temporary absence of data (timeout)
+STREAM_ENDED = object()  # client closed connection / reset
 # CONN_RECV_TIMEOUT_SEC:
 #  - Per-connection socket timeout used only to periodically break out of a blocking recv()
 #    so we can check the global 'running' flag (Ctrl+C / SIGTERM) and then continue waiting for audio.
@@ -95,8 +93,10 @@ MAX_SINGLE_RECV_BYTES = int(os.environ.get("MAX_SINGLE_RECV_BYTES", str(5 * 1024
 DEFAULT_PACKET_SIZE_BYTES = 32000 * 5 * 60
 PACKET_SIZE_BYTES = int(os.environ.get("PACKET_SIZE_BYTES", str(DEFAULT_PACKET_SIZE_BYTES)))
 
+
 class Connection:
-    '''it wraps conn object'''
+    """it wraps conn object"""
+
     # Previously fixed at 32000*5*60; now overridable via PACKET_SIZE_BYTES env (same default).
     PACKET_SIZE = PACKET_SIZE_BYTES  # 5 minutes buffer @16kHz (was hard-coded 32000*5*60)
 
@@ -107,7 +107,7 @@ class Connection:
         self.conn.settimeout(CONN_RECV_TIMEOUT_SEC)
 
     def send(self, line):
-        '''it doesn't send the same line twice, because it was problematic in online-text-flow-events'''
+        """it doesn't send the same line twice, because it was problematic in online-text-flow-events"""
         if line == self.last_line:
             return
         line_packet.send_one_line(self.conn, line)
@@ -137,6 +137,7 @@ class Connection:
 
 # (Removed unused legacy 'io' import.)
 
+
 # Direct PCM16LE -> float32 decoder (Phase 5 optimization)
 def pcm16le_bytes_to_float32(raw_bytes: Optional[Union[bytes, bytearray, memoryview]]) -> Optional[np.ndarray]:
     """Convert little-endian signed 16-bit PCM bytes to float32 array in [-1,1].
@@ -152,28 +153,29 @@ def pcm16le_bytes_to_float32(raw_bytes: Optional[Union[bytes, bytearray, memoryv
     if not raw_bytes:
         return None
     # astype produces a float32 copy; in-place scaling avoids an extra temporary from division
-    audio = np.frombuffer(raw_bytes, dtype='<i2').astype(np.float32)
-    audio *= (1.0/32768.0)
+    audio = np.frombuffer(raw_bytes, dtype="<i2").astype(np.float32)
+    audio *= 1.0 / 32768.0
     return audio
 
-# wraps socket and ASR object, and serves one client connection. 
+
+# wraps socket and ASR object, and serves one client connection.
 # next client should be served by a new instance of this object
 class ServerProcessor:
 
-    def timedelta_to_webvtt(self,delta):
-    #Format this:0:00:00
-    #Format this:0:00:09.480000
-      parts = delta.split(":")
-      parts2 = parts[2].split(".")
+    def timedelta_to_webvtt(self, delta):
+        # Format this:0:00:00
+        # Format this:0:00:09.480000
+        parts = delta.split(":")
+        parts2 = parts[2].split(".")
 
-      final_data  = "{:02d}".format(int(parts[0])) + ":"
-      final_data += "{:02d}".format(int(parts[1])) + ":"
-      final_data += "{:02d}".format(int(parts2[0])) + "."
-      if(len(parts2) == 1):
-        final_data += "000"
-      else:
-        final_data += "{:03d}".format(int(int(parts2[1])/1000))
-      return final_data
+        final_data = "{:02d}".format(int(parts[0])) + ":"
+        final_data += "{:02d}".format(int(parts[1])) + ":"
+        final_data += "{:02d}".format(int(parts2[0])) + "."
+        if len(parts2) == 1:
+            final_data += "000"
+        else:
+            final_data += "{:03d}".format(int(int(parts2[1]) / 1000))
+        return final_data
 
     def __init__(self, c, online_asr_proc, min_chunk):
         self.connection = c
@@ -229,32 +231,32 @@ class ServerProcessor:
             return out[0]
         return np.concatenate(out)
 
-    def format_output_transcript(self,o):
+    def format_output_transcript(self, o):
         # This function differs from whisper_online.output_transcript in the following:
         # succeeding [beg,end] intervals are not overlapping because ELITR protocol (implemented in online-text-flow events) requires it.
         # Therefore, beg, is max of previous end and current beg outputed by Whisper.
         # Usually it differs negligibly, by appx 20 ms.
 
         if o[0] is not None:
-            beg, end = o[0],o[1]
+            beg, end = o[0], o[1]
             if self.last_end is not None:
                 beg = max(beg, self.last_end)
 
             self.last_end = end
-            
+
             beg_webvtt = self.timedelta_to_webvtt(str(datetime.timedelta(seconds=beg)))
             end_webvtt = self.timedelta_to_webvtt(str(datetime.timedelta(seconds=end)))
             logger.info("%s -> %s %s" % (beg_webvtt, end_webvtt, o[2].strip()))
 
             data = {}
             # language field: use provided --lan unless 'auto', then fallback to 'en'
-            if language and language != 'auto':
-                data['language'] = language
+            if language and language != "auto":
+                data["language"] = language
             else:
-                data['language'] = 'en'
-            data['start'] = "%1.3f" % datetime.timedelta(seconds=beg).total_seconds()
-            data['end'] = "%1.3f" % datetime.timedelta(seconds=end).total_seconds()
-            data['text'] = o[2].strip()
+                data["language"] = "en"
+            data["start"] = "%1.3f" % datetime.timedelta(seconds=beg).total_seconds()
+            data["end"] = "%1.3f" % datetime.timedelta(seconds=end).total_seconds()
+            data["text"] = o[2].strip()
 
             return json.dumps(data)
         else:
@@ -296,11 +298,14 @@ class ServerProcessor:
         except BrokenPipeError:
             logger.info("broken pipe -- connection closed?")
 
+
 def run_subprocess(*_a, **_kw):
     raise RuntimeError("run_subprocess not available")
 
+
 def worker_thread(*_a, **_kw):
     raise RuntimeError("worker_thread not available")
+
 
 def stop(signum, frame):
     """Signal handler for graceful shutdown (Ctrl+C / SIGTERM)."""
@@ -308,8 +313,8 @@ def stop(signum, frame):
     if not running:  # already shutting down
         return
     running = False
-    sig_name = 'SIGINT' if signum == signal.SIGINT else 'SIGTERM'
-    logger.info(f'Shutdown signal received ({sig_name}); finishing current operation...')
+    sig_name = "SIGINT" if signum == signal.SIGINT else "SIGTERM"
+    logger.info(f"Shutdown signal received ({sig_name}); finishing current operation...")
     if server_socket is not None:
         try:
             server_socket.shutdown(socket.SHUT_RDWR)
@@ -321,11 +326,11 @@ def stop(signum, frame):
             pass
 
 
-
 # server loop
 
 signal.signal(signal.SIGINT, stop)
 signal.signal(signal.SIGTERM, stop)
+
 
 def handle_client(conn, addr):
     """Process a single client connection (serial, no concurrency)."""
@@ -337,13 +342,14 @@ def handle_client(conn, addr):
     except OSError:
         pass
 
+
 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
     server_socket = s
     s.bind((args.host, args.port))
     s.listen(5)  # increased backlog (Phase 6); still serial accept/process
     # Set a timeout so accept() wakes up periodically to observe running flag on Windows
     s.settimeout(1.0)
-    logger.info('Listening on'+str((args.host, args.port)))
+    logger.info("Listening on" + str((args.host, args.port)))
     last_client_addr = None
     while running:
         try:
@@ -358,30 +364,35 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                     break  # socket was closed due to shutdown
                 logger.error(f"Socket accept error: {e}; continuing")
                 continue
-            logger.debug('Connected to client on {}'.format(addr))
+            logger.debug("Connected to client on {}".format(addr))
             last_client_addr = addr
             handle_client(conn, addr)
-            logger.debug('Connection to client closed {}'.format(addr))
+            logger.debug("Connection to client closed {}".format(addr))
         except Exception as e:
             if not running:
                 break
             import errno
+
             # Normalize common connection reset scenarios (Windows WinError 10054 / POSIX ECONNRESET)
-            win_err = getattr(e, 'winerror', None)
-            err_no = getattr(e, 'errno', None)
+            win_err = getattr(e, "winerror", None)
+            err_no = getattr(e, "errno", None)
             msg = str(e)
-            if win_err == 10054 or err_no == errno.ECONNRESET or '10054' in msg or 'ECONNRESET' in msg:
+            if win_err == 10054 or err_no == errno.ECONNRESET or "10054" in msg or "ECONNRESET" in msg:
                 if last_client_addr:
-                    logger.info(f"Unexpected client disconnect (connection reset) peer={last_client_addr[0]}:{last_client_addr[1]}")
+                    logger.info(
+                        f"Unexpected client disconnect (connection reset) peer={last_client_addr[0]}:{last_client_addr[1]}"
+                    )
                 else:
                     logger.info("Unexpected client disconnect (connection reset)")
             else:
                 if last_client_addr:
-                    logger.error(f"Unexpected server loop error: {e} peer={last_client_addr[0]}:{last_client_addr[1]}; continuing")
+                    logger.error(
+                        f"Unexpected server loop error: {e} peer={last_client_addr[0]}:{last_client_addr[1]}; continuing"
+                    )
                 else:
                     logger.error(f"Unexpected server loop error: {e}; continuing")
             continue
 
 if not shutdown_logged:
-    logger.info('Server stopped gracefully')
-running=False
+    logger.info("Server stopped gracefully")
+running = False

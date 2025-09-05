@@ -16,13 +16,13 @@ If you want GPU acceleration locally on Windows (backend `faster-whisper`), inst
 
 1. NVIDIA CUDA Toolkit 12.x (includes drivers if needed)
 
-- Download: https://developer.nvidia.com/cuda-downloads
-- Reopen PowerShell after install so PATH updates apply.
+-   Download: https://developer.nvidia.com/cuda-downloads
+-   Reopen PowerShell after install so PATH updates apply.
 
 2. cuDNN 9 for Windows (separate installer – not bundled in CUDA Toolkit)
 
-- Download: https://developer.nvidia.com/cudnn (choose Windows x86_64, matching CUDA 12)
-- Run installer (no manual DLL copy required in recent versions). Reboot if DLL errors persist.
+-   Download: https://developer.nvidia.com/cudnn (choose Windows x86_64, matching CUDA 12)
+-   Run installer (no manual DLL copy required in recent versions). Reboot if DLL errors persist.
 
 3. Torch is NOT required for faster-whisper GPU support; ctranslate2 uses CUDA directly.
 4. Verify:
@@ -99,10 +99,10 @@ Each line emitted by the server stdout is one JSON object (ordering & fields are
 
 ```json
 {
-  "language": "en",
-  "start": "7.580",
-  "end": "8.540",
-  "text": "this is text from whisper"
+    "language": "en",
+    "start": "7.580",
+    "end": "8.540",
+    "text": "this is text from whisper"
 }
 ```
 
@@ -122,26 +122,32 @@ Expect streaming JSON lines in the server logs.
 
 ### Prerequisites
 
-- Windows 10/11 + PowerShell
-- Python 3.12+ (3.13 supported)
-- `ffmpeg` in PATH
-- `ncat` (Nmap) in PATH (`choco install nmap -y` or install from site)
-- (Optional) Sample speech MP3 at `./samples/audio.mp3`
+-   Windows 10/11 + PowerShell
+-   Python 3.12+ (3.13 supported)
+-   `ffmpeg` in PATH
+-   `ncat` (Nmap) in PATH (`choco install nmap -y` or install from site)
+-   (Optional) Sample speech MP3 at `./samples/audio.mp3`
 
-### 1. Virtual Environment
+### 1. Create a Virtual Environment
 
 ```
 python -m venv .venv
 ./.venv/Scripts/Activate.ps1
 ```
 
-If scripts blocked: `Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass`
+If scripts are blocked: `Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass`
 
-### 2. Install Dependencies
+### 2. Install Dependencies (using pyproject.toml)
 
 ```
 pip install --upgrade pip
-pip install -r requirements.txt
+pip install .
+```
+
+For developer tools (optional):
+
+```
+pip install .[dev]
 ```
 
 ### 3. Run Server (CPU tiny model example)
@@ -188,10 +194,10 @@ Ctrl+C (graceful shutdown improvements planned in Phase 4).
 
 ### Validation Checklist
 
-- Server starts (no import errors)
-- Receives raw PCM and stays running
-- Emits JSON lines with all four fields
-- Stops cleanly with Ctrl+C
+-   Server starts (no import errors)
+-   Receives raw PCM and stays running
+-   Emits JSON lines with all four fields
+-   Stops cleanly with Ctrl+C
 
 ---
 
@@ -203,10 +209,6 @@ GPU acceleration (optional) – baseline image is CPU-oriented. If CUDA is avail
 
 Based on:
 
-- [Whisper Streaming](https://github.com/ufal/whisper_streaming)
-- [OpenAI Whisper](https://github.com/openai/whisper)
-- Original Wowza integration README
-
----
-
-Documentation consolidated (`TEST.md` merged here). JSON schema and trimming semantics are frozen.
+-   [Whisper Streaming](https://github.com/ufal/whisper_streaming)
+-   [OpenAI Whisper](https://github.com/openai/whisper)
+-   Original Wowza integration README

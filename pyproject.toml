@@ -1,0 +1,28 @@
+[tool.setuptools]
+py-modules = ["whisper_online", "whisper_online_server"]
+[project]
+name = "whisper_streaming"
+version = "1.0.0"
+description = "Low-latency Whisper transcription server for Wowza"
+requires-python = ">=3.12"
+dependencies = [
+    "numpy>=1.26",
+    "faster-whisper>=1.0.0",
+    "soundfile>=0.12",
+    "openai>=1.0.0",
+    "hf_xet",
+    "setuptools<81"
+]
+
+[project.optional-dependencies]
+dev = [
+    "black",
+    "isort",
+    "pytest"
+]
+
+[tool.black]
+line-length = 120
+
+[tool.isort]
+profile = "black"

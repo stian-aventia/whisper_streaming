@@ -25,9 +25,10 @@ RUN apt update && \
     libsndfile1 && \
     rm -rf /var/lib/apt/lists/*
 
-# Install only the project requirements 
-COPY requirements.txt /tmp/requirements.txt
-RUN pip install --no-cache-dir -r /tmp/requirements.txt
+
+# Installer prosjektavhengigheter via pyproject.toml
+COPY pyproject.toml /app/pyproject.toml
+RUN pip install --no-cache-dir .
 
 COPY *.py .
 COPY entrypoint.sh .

@@ -36,6 +36,7 @@ https://github.com/ufal/whisper_streaming
 - GPU selection: auto-detect CUDA (ctranslate2.get_cuda_device_count()>0); `USE_GPU` env deprecated/ignored; `--disable_gpu` flag forces CPU.
 - Dockerfile: now bundles minimal CUDA 12 runtime + cuDNN libs (cudart, cublas, cudnn) on python:3.12-slim for container GPU usage (requires host driver + `--gpus all`).
 - Added helper scripts: `docker_build.ps1`, `docker_run.ps1` (simple local convenience; not required in production).
+- Added minimal Windows launcher for local testing: `start.bat`
 
 ### Deprecated
 

@@ -11,13 +11,7 @@ https://github.com/ufal/whisper_streaming
 
 ### Added
 
-- Internal receive loop sentinels to distinguish temporary absence of audio (timeout) vs. client stream end (no protocol change).
-- Per-connection socket recv timeout (1s) for responsive shutdown without affecting steady-state streaming.
-
 ### Changed
-
-/- Increased server listen backlog from 1 to 5 (still single-client serial handling; prepares for future multi-client work).
-/- Refactored client handling into helper `handle_client` (internal only; no behavioural change).
 
 ### Deprecated
 
@@ -26,6 +20,38 @@ https://github.com/ufal/whisper_streaming
 ### Fixed
 
 ### Security
+
+## [1.6.0] - 2025-09-05
+
+### Added
+
+- Internal receive loop sentinels to distinguish temporary absence of audio (timeout) vs. client stream end (no protocol change).
+- Per-connection socket recv timeout (1s) for responsive shutdown without affecting steady-state streaming.
+
+### Changed
+
+- Increased server listen backlog from 1 to 5 (still single-client serial handling; prepares for future multi-client work).
+- Refactored client handling into helper `handle_client` (internal only; no behavioural change).
+- README: Moved & simplified Windows GPU prerequisites section (installer-based CUDA + cuDNN; removed manual ZIP copy instructions) placed at top of Usage.
+- GPU selection: auto-detect CUDA (ctranslate2.get_cuda_device_count()>0); `USE_GPU` env deprecated/ignored; `--disable_gpu` flag forces CPU.
+- Dockerfile: now bundles minimal CUDA 12 runtime + cuDNN libs (cudart, cublas, cudnn) on python:3.12-slim for container GPU usage (requires host driver + `--gpus all`).
+- Added helper scripts: `docker_build.ps1`, `docker_run.ps1` (simple local convenience; not required in production).
+
+### Deprecated
+
+- Environment variable `USE_GPU` (replaced by automatic detection + optional `--disable_gpu`).
+
+### Removed
+
+- (none)
+
+### Fixed
+
+- (none)
+
+### Security
+
+- (none)
 
 ## [1.5.1] - 2025-09-04
 
@@ -232,7 +258,8 @@ Use: Added, Changed, Deprecated, Removed, Fixed, Security.
 
 ## Link References
 
-[Unreleased]: https://github.com/stian-aventia/whisper_streaming/compare/v1.5.1...HEAD
+[Unreleased]: https://github.com/stian-aventia/whisper_streaming/compare/v1.6.0...HEAD
+[1.6.0]: https://github.com/stian-aventia/whisper_streaming/compare/v1.5.1...v1.6.0
 [1.5.1]: https://github.com/stian-aventia/whisper_streaming/compare/v1.5.0...v1.5.1
 [1.5.0]: https://github.com/stian-aventia/whisper_streaming/compare/v1.4.0...v1.5.0
 [1.4.0]: https://github.com/stian-aventia/whisper_streaming/compare/v1.3.0...v1.4.0

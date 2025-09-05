@@ -4,6 +4,7 @@
 ## This code is licensed pursuant to the Wowza Public License version 1.0, available at www.wowza.com/legal.
 ##
 import sys
+import os
 import numpy as np
 import time
 import logging
@@ -62,7 +63,6 @@ class FasterWhisperASR(ASRBase):
 
         if(use_gpu):
             # this worked fast and reliably on NVIDIA L40
-            logger.info("Using GPU/CUDA")
             model = WhisperModel(model, device="cuda", compute_type="float16", download_root=cache_dir)
 
             # or run on GPU with INT8
@@ -414,7 +414,7 @@ def add_shared_args(parser):
     parser.add_argument('--vad', action="store_true", default=True, help='Use VAD = voice activity detection (default: enabled).')
     parser.add_argument("-l", "--log-level", dest="log_level", choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'], help="Set the log level", default='DEBUG')
     parser.add_argument("--sampling_rate", type=int, default=16000)
-    parser.add_argument("--use_gpu", type=lambda x: (str(x).lower() in ['true','1', 'yes']), default=False, help='Use the GPU')
+    parser.add_argument("--disable_gpu", action="store_true", default=False, help='Force disable GPU even if USE_GPU env is set')
 
 def asr_factory(args, logfile=sys.stderr):
     """
@@ -425,10 +425,28 @@ def asr_factory(args, logfile=sys.stderr):
         asr = OpenaiApiASR(lan=args.lan)
     else:  # faster-whisper
         model = args.model
+        # Auto GPU: if --disable_gpu set -> CPU; else detect CUDA device count.
+        if args.disable_gpu:
+            use_gpu = False
+            logger.info("GPU disabled (flag)")
+        else:
+            use_gpu = False
+            try:
+                import ctranslate2
+                count = ctranslate2.get_cuda_device_count()
+            except Exception:
+                count = 0
+                logger.info("CUDA detection failed; using CPU")
+            if count > 0:
+                use_gpu = True
+                plural = "s" if count != 1 else ""
+                logger.info(f"GPU auto-detected ({count} CUDA device{plural})")
+            else:
+                logger.info("No CUDA devices detected; using CPU")
         t = time.time()
         cache_note = f" (cache: {args.model_cache_dir})" if args.model_cache_dir else ""
         logger.info(f"Loading Whisper {model} model for {args.lan}{cache_note}...")
-        asr = FasterWhisperASR(model=model, lan=args.lan, cache_dir=args.model_cache_dir, use_gpu=args.use_gpu)
+        asr = FasterWhisperASR(model=model, lan=args.lan, cache_dir=args.model_cache_dir, use_gpu=use_gpu)
         e = time.time()
         logger.info(f"done. It took {round(e-t,2)} seconds.")
 

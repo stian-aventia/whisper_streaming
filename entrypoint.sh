@@ -16,14 +16,18 @@ language="${LANGUAGE:-auto}"
 log_level="${LOG_LEVEL:-INFO}"
 min_chunk_size="${MIN_CHUNK_SIZE:-1}"
 sampling_rate="${SAMPLING_RATE:-16000}"
-use_gpu="${USE_GPU:-False}"
+
+disable_flag=""
+if [ "${DISABLE_GPU:-}" != "" ]; then
+  disable_flag="--disable_gpu"
+fi
 
 exec python whisper_online_server.py \
 	--backend $backend \
 	--model $model \
 	--min-chunk-size $min_chunk_size \
 	--sampling_rate $sampling_rate \
-	--use_gpu $use_gpu \
+	$disable_flag \
 	--port 3000 \
 	--host 0.0.0.0 \
 	--log-level $log_level \

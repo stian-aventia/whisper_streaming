@@ -5,24 +5,28 @@ import sys
 import argparse
 import os
 import logging
+import warnings
 import numpy as np
-import time
-import subprocess
-import threading
 import signal
 import datetime
 import json
+from typing import Optional, Union
 
 logger = logging.getLogger(__name__)
+
+# Suppress noisy pkg_resources deprecation warning (ctranslate2 dependency path)
+# Toggle with SUPPRESS_PKG_RES_WARN=0 to re-enable.
+if os.environ.get("SUPPRESS_PKG_RES_WARN", "1") == "1":
+    warnings.filterwarnings(
+        "ignore",
+        category=DeprecationWarning,
+        module=r"pkg_resources"
+    )
 parser = argparse.ArgumentParser()
 
 # server options
 parser.add_argument("--host", type=str, default='localhost')
 parser.add_argument("--port", type=int, default=3000)
-parser.add_argument("--warmup-file", type=str, dest="warmup_file", 
-        help="The path to a speech audio wav file to warm up Whisper so that the very first chunk processing is fast. It can be e.g. https://github.com/ggerganov/whisper.cpp/raw/master/samples/jfk.wav .")
-parser.add_argument("--source-stream", type=str, default=None)
-parser.add_argument("--report-language", type=str, default=None)
 
 # options from whisper_online
 add_shared_args(parser)
@@ -31,27 +35,37 @@ args = parser.parse_args()
 set_logging(args,logger,other="")
 
 running=True
+server_socket = None  # will be set after socket creation
+shutdown_logged = False
 # setting whisper object by args 
 
 SAMPLING_RATE = args.sampling_rate
-size = args.model
+# Removed unused local aliases (size, min_chunk) to reduce namespace noise.
 language = args.lan
 asr, online = asr_factory(args)
-min_chunk = args.min_chunk_size
 
-# warm up the ASR because the very first transcribe takes more time than the others. 
-# Test results in https://github.com/ufal/whisper_streaming/pull/81
-msg = "Whisper is not warmed up. The first chunk processing may take longer."
-if args.warmup_file:
-    if os.path.isfile(args.warmup_file):
-        a = load_audio_chunk(args.warmup_file,0,1)
-        asr.transcribe(a)
-        logger.info("Whisper is warmed up.")
+# Sanity warning: if min_chunk_size exceeds fixed segment trim window (15s),
+# initial transcripts may be delayed indefinitely. Log once.
+try:
+    from whisper_online import SEGMENT_TRIM_SEC as _SEGMENT_TRIM_SEC
+except Exception:
+    _SEGMENT_TRIM_SEC = 15  # fallback (should not differ)
+if args.min_chunk_size > _SEGMENT_TRIM_SEC:
+    logger.warning(
+        f"Configured --min-chunk-size ({args.min_chunk_size}s) exceeds internal segment trim window "
+        f"({_SEGMENT_TRIM_SEC}s); this can delay first transcript emission. Consider lowering it."
+    )
+
+# Warm-up: run a short silent buffer through model so first real chunk is faster
+try:
+    if args.backend == 'faster-whisper':
+        silent = np.zeros(int(SAMPLING_RATE * 0.5), dtype=np.float32)  # 0.5s silence
+        asr.transcribe(silent)
+        logger.info("Model warm-up with generated silence complete.")
     else:
-        logger.critical("The warm up file is not available. "+msg)
-        sys.exit(1)
-else:
-    logger.warning(msg)
+        logger.debug("Skipping local warm-up for non local backend.")
+except Exception as e:
+    logger.warning(f"Warm-up failed (continuing without): {e}")
 
 
 ######### Server objects
@@ -59,15 +73,38 @@ else:
 import line_packet
 import socket
 
+# ---- Phase 6 internal constants & sentinels (no external behaviour change) ----
+NO_DATA_YET = object()       # temporary absence of data (timeout)
+STREAM_ENDED = object()      # client closed connection / reset
+# CONN_RECV_TIMEOUT_SEC:
+#  - Per-connection socket timeout used only to periodically break out of a blocking recv()
+#    so we can check the global 'running' flag (Ctrl+C / SIGTERM) and then continue waiting for audio.
+#  - On timeout we return the NO_DATA_YET sentinel and DO NOT close or alter the connection.
+#    This is NOT an inactivity threshold and will never end the client session by itself.
+#  - Actual end-of-stream is only when recv() returns b'' (orderly close) or raises ConnectionResetError,
+#    which we map to STREAM_ENDED.
+#  - Lower values give faster shutdown responsiveness but increase wakeups; higher values delay Ctrl+C.
+#    1.0s is a compromise (≤1s worst-case shutdown delay) without unnecessary CPU spin.
+CONN_RECV_TIMEOUT_SEC = 1.0  # per-connection recv timeout (responsiveness only; no auto-shutdown)
+
+# Oversized packet guard (Phase 5): configurable threshold (default 5MB)
+MAX_SINGLE_RECV_BYTES = int(os.environ.get("MAX_SINGLE_RECV_BYTES", str(5 * 1024 * 1024)))
+
+# Packet size override (micro-improvement): allow tuning recv buffer without code change.
+# Default keeps prior behaviour (5 minutes @ 16kHz 32000 bytes/sec * 5 * 60).
+DEFAULT_PACKET_SIZE_BYTES = 32000 * 5 * 60
+PACKET_SIZE_BYTES = int(os.environ.get("PACKET_SIZE_BYTES", str(DEFAULT_PACKET_SIZE_BYTES)))
+
 class Connection:
     '''it wraps conn object'''
-    PACKET_SIZE = 32000*5*60 # 5 minutes # was: 65536
+    # Previously fixed at 32000*5*60; now overridable via PACKET_SIZE_BYTES env (same default).
+    PACKET_SIZE = PACKET_SIZE_BYTES  # 5 minutes buffer @16kHz (was hard-coded 32000*5*60)
 
     def __init__(self, conn):
         self.conn = conn
         self.last_line = ""
-
-        self.conn.setblocking(True)
+        # Use timeout to distinguish inactivity from shutdown; keeps loop responsive
+        self.conn.settimeout(CONN_RECV_TIMEOUT_SEC)
 
     def send(self, line):
         '''it doesn't send the same line twice, because it was problematic in online-text-flow-events'''
@@ -76,20 +113,48 @@ class Connection:
         line_packet.send_one_line(self.conn, line)
         self.last_line = line
 
-    def receive_lines(self):
-        in_line = line_packet.receive_lines(self.conn)
-        return in_line
-
     def non_blocking_receive_audio(self):
+        """Receive up to PACKET_SIZE bytes.
+        Returns:
+          bytes: normal data (len>0)
+          NO_DATA_YET: timeout with no data (socket still open)
+          STREAM_ENDED: remote closed/reset
+        """
         try:
             r = self.conn.recv(self.PACKET_SIZE)
+            if r == b"":  # remote orderly shutdown
+                return STREAM_ENDED
+            if r and len(r) > MAX_SINGLE_RECV_BYTES:
+                logger.warning(
+                    f"Oversized audio packet received: {len(r)/1024/1024:.2f} MB (threshold {MAX_SINGLE_RECV_BYTES/1024/1024:.2f} MB)"
+                )
             return r
+        except socket.timeout:
+            return NO_DATA_YET
         except ConnectionResetError:
-            return None
+            return STREAM_ENDED
 
 
-import io
-import soundfile
+# (Removed unused legacy 'io' import.)
+
+# Direct PCM16LE -> float32 decoder (Phase 5 optimization)
+def pcm16le_bytes_to_float32(raw_bytes: Optional[Union[bytes, bytearray, memoryview]]) -> Optional[np.ndarray]:
+    """Convert little-endian signed 16-bit PCM bytes to float32 array in [-1,1].
+    - Accepts bytes-like object; returns np.ndarray or None if empty/invalid.
+    - Drops trailing odd byte (logs at DEBUG level per occurrence).
+    """
+    if not raw_bytes:
+        return None
+    ln = len(raw_bytes)
+    if ln % 2 == 1:  # odd length – drop last byte
+        logger.debug(f"Dropping trailing odd byte in audio packet len={ln}")
+        raw_bytes = raw_bytes[:-1]
+    if not raw_bytes:
+        return None
+    # astype produces a float32 copy; in-place scaling avoids an extra temporary from division
+    audio = np.frombuffer(raw_bytes, dtype='<i2').astype(np.float32)
+    audio *= (1.0/32768.0)
+    return audio
 
 # wraps socket and ASR object, and serves one client connection. 
 # next client should be served by a new instance of this object
@@ -117,27 +182,51 @@ class ServerProcessor:
         self.last_end = None
         self.is_first = True
 
-    def receive_audio_chunk(self):
+    def receive_audio_chunk(self) -> Union[np.ndarray, object, None]:
+        """Accumulate enough audio to meet min_chunk (except when stream ends).
+
+        Returns:
+          np.ndarray: ready chunk
+          NO_DATA_YET: temporary lack of data (keep looping)
+          STREAM_ENDED: remote closed and no more audio
+        """
         global running
-        # receive all audio that is available by this time
-        # blocks operation if less than self.min_chunk seconds is available
-        # unblocks if connection is closed or a chunk is available
         out = []
-        minlimit = self.min_chunk*SAMPLING_RATE
-        while running and sum(len(x) for x in out) < minlimit:
+        minlimit = self.min_chunk * SAMPLING_RATE
+        samples_accum = 0
+        while running and samples_accum < minlimit:
             raw_bytes = self.connection.non_blocking_receive_audio()
-            if not raw_bytes:
+            if raw_bytes is NO_DATA_YET:
+                # Only return NO_DATA_YET if we have accumulated nothing.
+                if not out:
+                    return NO_DATA_YET
+                else:
+                    # Wait again; continue loop to try fill minlimit.
+                    continue
+            if raw_bytes is STREAM_ENDED:
+                # If we have partial audio, process it even if below minlimit (end of stream)
+                if out:
+                    break
+                return STREAM_ENDED
+            # Normal bytes path
+            if not raw_bytes:  # defensive (should be handled above)
+                return NO_DATA_YET if not out else np.concatenate(out)
+            audio = pcm16le_bytes_to_float32(raw_bytes)
+            if audio is None or audio.size == 0:
+                if not out:
+                    return NO_DATA_YET
                 break
-#            print("received audio:",len(raw_bytes), "bytes", raw_bytes[:10])
-            sf = soundfile.SoundFile(io.BytesIO(raw_bytes), channels=1,endian="LITTLE",samplerate=SAMPLING_RATE, subtype="PCM_16",format="RAW")
-            audio, _ = librosa.load(sf,sr=SAMPLING_RATE,dtype=np.float32)
             out.append(audio)
+            samples_accum += audio.shape[0]
+
         if not out:
-            return None
-        conc = np.concatenate(out)
-        if self.is_first and len(conc) < minlimit:
-            return None
+            return NO_DATA_YET
+        # For first chunk, enforce minlimit unless stream ended (handled above)
+        if self.is_first and samples_accum < minlimit:
+            return NO_DATA_YET
         self.is_first = False
+        if len(out) == 1:
+            return out[0]
         return np.concatenate(out)
 
     def format_output_transcript(self,o):
@@ -158,10 +247,11 @@ class ServerProcessor:
             logger.info("%s -> %s %s" % (beg_webvtt, end_webvtt, o[2].strip()))
 
             data = {}
-            data['language'] = (report_language 
-                   if report_language not in [None, 'none'] 
-                   else ("en" if language in [None, 'none'] else language))
-
+            # language field: use provided --lan unless 'auto', then fallback to 'en'
+            if language and language != 'auto':
+                data['language'] = language
+            else:
+                data['language'] = 'en'
             data['start'] = "%1.3f" % datetime.timedelta(seconds=beg).total_seconds()
             data['end'] = "%1.3f" % datetime.timedelta(seconds=end).total_seconds()
             data['text'] = o[2].strip()
@@ -173,7 +263,7 @@ class ServerProcessor:
 
     def send_result(self, o):
         msg = self.format_output_transcript(o)
-        if msg is not None and (source_stream == None or source_stream == 'none'):
+        if msg is not None:
             self.connection.send(msg)
 
     def process(self):
@@ -182,60 +272,54 @@ class ServerProcessor:
         self.online_asr_proc.init()
         first_time = True
         while running:
-            a = self.receive_audio_chunk()
-            if a is None:
-                if first_time:
-                    logger.debug("No audio, exiting")
-                else:
-                    logger.info("No audio, exiting")
+            result = self.receive_audio_chunk()
+            if result is NO_DATA_YET:
+                continue  # remain in loop waiting for more audio
+            if result is STREAM_ENDED:
+                logger.info("Client stream ended")
                 break
-            else:
-                if first_time:
-                    first_time = False
-                    logger.info("Receiving Audio")
-                
-                self.online_asr_proc.insert_audio_chunk(a)
-                o = online.process_iter()
-                try:
-                    self.send_result(o)
-                except BrokenPipeError:
-                    logger.info("broken pipe -- connection closed?")
-                    break
-        #need to send what we have left
+            # got usable audio chunk
+            if first_time:
+                first_time = False
+                logger.info("Receiving Audio")
+            self.online_asr_proc.insert_audio_chunk(result)
+            o = online.process_iter()
+            try:
+                self.send_result(o)
+            except BrokenPipeError:
+                logger.info("broken pipe -- connection closed?")
+                break
+        # Flush remaining segments
         o = online.finish()
         try:
             self.send_result(o)
         except BrokenPipeError:
             logger.info("broken pipe -- connection closed?")
 
-def run_subprocess(command):
-    process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    stdout, stderr = process.communicate()
-    return stdout.decode(), stderr.decode(), process.returncode
+def run_subprocess(*_a, **_kw):
+    raise RuntimeError("run_subprocess not available")
 
-def worker_thread(command):
-    global running    
-    while running:
-        stdout, stderr, returncode = run_subprocess(command)
-        logger.debug(f"Return Code: {returncode}")
-        time.sleep(1.0)
+def worker_thread(*_a, **_kw):
+    raise RuntimeError("worker_thread not available")
 
-def stop(self, signum=None, frame=None):
-    global running,server_socket
-    server_socket.close()
+def stop(signum, frame):
+    """Signal handler for graceful shutdown (Ctrl+C / SIGTERM)."""
+    global running, server_socket, shutdown_logged
+    if not running:  # already shutting down
+        return
     running = False
+    sig_name = 'SIGINT' if signum == signal.SIGINT else 'SIGTERM'
+    logger.info(f'Shutdown signal received ({sig_name}); finishing current operation...')
+    if server_socket is not None:
+        try:
+            server_socket.shutdown(socket.SHUT_RDWR)
+        except Exception:
+            pass
+        try:
+            server_socket.close()
+        except Exception:
+            pass
 
-# source_stream = "rtmp://wse.docker/live/myStream_160p"
-#command = "ffmpeg -hide_banner -loglevel error -f flv -i rtmp://host.docker.internal/live/myStream_aac -c:a pcm_s16le -ac 1 -ar 16000 -f s16le - | nc -q 1 localhost 3000"
-#command = "ffmpeg -hide_banner -loglevel error -f flv -i rtmp://d93ab27c23fd-qa.entrypoint.cloud.wowza.com/app-Qp8R494H/259c678c_stream7 -c:a pcm_s16le -ac 1 -ar 16000 -f s16le - | nc -q 1 localhost 3000"
-report_language = args.report_language
-source_stream = args.source_stream
-if source_stream != None and source_stream != 'none':
-    command = "ffmpeg -hide_banner -loglevel error -f flv -i " + source_stream + " -vn -c:a pcm_s16le -ac 1 -ar " + str(SAMPLING_RATE) + " -f s16le - | nc -q 1 localhost 3000"
-    logger.info("Running ffmpeg to connect stream "+source_stream+ " with whisper server:")
-    logger.info("    " + command)
-    thread = threading.Thread(target=worker_thread, args=(command,))
-    thread.start()
 
 
 # server loop
@@ -243,23 +327,61 @@ if source_stream != None and source_stream != 'none':
 signal.signal(signal.SIGINT, stop)
 signal.signal(signal.SIGTERM, stop)
 
+def handle_client(conn, addr):
+    """Process a single client connection (serial, no concurrency)."""
+    connection = Connection(conn)
+    proc = ServerProcessor(connection, online, args.min_chunk_size)
+    proc.process()
+    try:
+        conn.close()
+    except OSError:
+        pass
+
 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-    global server_socket
     server_socket = s
     s.bind((args.host, args.port))
-    s.listen(1)
+    s.listen(5)  # increased backlog (Phase 6); still serial accept/process
+    # Set a timeout so accept() wakes up periodically to observe running flag on Windows
+    s.settimeout(1.0)
     logger.info('Listening on'+str((args.host, args.port)))
+    last_client_addr = None
     while running:
         try:
-            conn, addr = s.accept()
-            logger.info('Connected to client on {}'.format(addr))
-            connection = Connection(conn)
-            proc = ServerProcessor(connection, online, args.min_chunk_size)
-            proc.process()
-            conn.close()
-        except socket.error as e:
-          break # Exit the loop on socket errors            
-        logger.info('Connection to client closed{}'.format(addr))
+            try:
+                conn, addr = s.accept()
+            except socket.timeout:
+                if not running:
+                    break
+                continue
+            except OSError as e:
+                if not running:
+                    break  # socket was closed due to shutdown
+                logger.error(f"Socket accept error: {e}; continuing")
+                continue
+            logger.debug('Connected to client on {}'.format(addr))
+            last_client_addr = addr
+            handle_client(conn, addr)
+            logger.debug('Connection to client closed {}'.format(addr))
+        except Exception as e:
+            if not running:
+                break
+            import errno
+            # Normalize common connection reset scenarios (Windows WinError 10054 / POSIX ECONNRESET)
+            win_err = getattr(e, 'winerror', None)
+            err_no = getattr(e, 'errno', None)
+            msg = str(e)
+            if win_err == 10054 or err_no == errno.ECONNRESET or '10054' in msg or 'ECONNRESET' in msg:
+                if last_client_addr:
+                    logger.info(f"Unexpected client disconnect (connection reset) peer={last_client_addr[0]}:{last_client_addr[1]}")
+                else:
+                    logger.info("Unexpected client disconnect (connection reset)")
+            else:
+                if last_client_addr:
+                    logger.error(f"Unexpected server loop error: {e} peer={last_client_addr[0]}:{last_client_addr[1]}; continuing")
+                else:
+                    logger.error(f"Unexpected server loop error: {e}; continuing")
+            continue
 
-logger.info('Server Stopped')
+if not shutdown_logged:
+    logger.info('Server stopped gracefully')
 running=False

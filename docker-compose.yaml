@@ -31,11 +31,10 @@ services:
         image: whisper_streaming:local
         platform: linux/arm64
         environment:
-            - MODEL=tiny.en # tiny.en, base.en, small.en, medium.en, large-v3
-            - REPORT_LANGUAGE=en
+            - MODEL=tiny # tiny, base, small, medium, large-v3
+            - LANGUAGE=en   # replaces deprecated REPORT_LANGUAGE
             - LOG_LEVEL=INFO
             - MIN_CHUNK_SIZE=1
-            # - SOURCE_STREAM=rtmp://wse.docker/live/myStream_160p
         ports:
             - 3000:3000
         volumes:

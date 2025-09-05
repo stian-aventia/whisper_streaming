@@ -1,0 +1,17 @@
+# Exclude local artifacts, caches, models, and virtual envs from build context
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.swp
+.env
+.venv/
+venv/
+models/
+models--*/
+*.log
+.DS_Store
+.git
+.gitignore
+README_ORG.md
+TEST.md

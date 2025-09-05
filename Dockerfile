@@ -1,38 +1,38 @@
-##
-## This code and all components (c) Copyright 2006 - 2025, Wowza Media Systems, LLC. All rights reserved.
-## This code is licensed pursuant to the Wowza Public License version 1.0, available at www.wowza.com/legal.
-##
-FROM python:3.12-bookworm
+FROM python:3.12-slim
 
-ARG DEBIAN_FRONTEND=noninteractive
-
-RUN apt update && apt install ffmpeg netcat-traditional -y
-
-RUN pip install --no-deps openai-whisper
-# dependancies
-RUN pip install numba numpy tqdm more-itertools tiktoken
-
-# Install these for GPU, increases image size by ~5GB
-# RUN pip install torch 
-# RUN pip install "triton>=2.0.0; platform_machine=='x86_64' and (sys_platform=='linux' or sys_platform=='linux2')"
-# RUN wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-keyring_1.1-1_all.deb
-# RUN dpkg -i cuda-keyring_1.1-1_all.deb
-# RUN apt update && apt install cudnn9-cuda-12 -y
-#
-
-RUN pip install librosa soundfile
-RUN pip install faster-whisper
-RUN pip install hf_xet
+# OS-level dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    wget ca-certificates \
+    libsndfile1 \
+    && rm -rf /var/lib/apt/lists/*
 
 # create a working directory
 RUN mkdir /app
 WORKDIR /app
 
-COPY *.py .
-COPY samples_jfk.wav .
-COPY entrypoint.sh .
-COPY LICENSE.txt .
+RUN pip install "triton>=2.0.0; platform_machine=='x86_64' and (sys_platform=='linux' or sys_platform=='linux2')"
+RUN wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-keyring_1.1-1_all.deb
+RUN dpkg -i cuda-keyring_1.1-1_all.deb
+RUN apt update && \
+    apt-get install -y --no-install-recommends \
+    cuda-cudart-12-6 \
+    libcublas-12-6 \
+    libnccl2 \
+    libcurand-12-6 \
+    libcusparse-12-6 \
+    libcufft-12-6 \
+    libcudnn9-cuda-12 \
+    libsndfile1 && \
+    rm -rf /var/lib/apt/lists/*
 
-EXPOSE 3000
+# Install only the project requirements 
+COPY requirements.txt /tmp/requirements.txt
+RUN pip install --no-cache-dir -r /tmp/requirements.txt
+
+COPY *.py .
+COPY entrypoint.sh .
+
+# Normalize potential Windows line endings and ensure executable bit for entrypoint
+RUN sed -i 's/\r$//' /app/entrypoint.sh && chmod +x /app/entrypoint.sh
 
 CMD ["/app/entrypoint.sh"]

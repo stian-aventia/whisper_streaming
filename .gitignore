@@ -129,5 +129,4 @@ dmypy.json
 .pyre/
 wse
 model_cache
-models/*
-tmp/*
+models

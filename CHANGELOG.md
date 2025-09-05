@@ -1,0 +1,269 @@
+# Changelog
+
+All notable changes to this project will be documented in this file.
+
+The format is based on Keep a Changelog (https://keepachangelog.com/en/1.0.0/) and this project adheres (as far as possible) to Semantic Versioning (https://semver.org/) starting from its first tagged release.
+
+Origin: This repository is a fork / adaptation of the original UFAL whisper streaming server:
+https://github.com/ufal/whisper_streaming
+
+## [Unreleased]
+
+### Added
+
+### Changed
+
+### Deprecated
+
+### Removed
+
+### Fixed
+
+### Security
+
+## [1.6.0] - 2025-09-05
+
+### Added
+
+- Internal receive loop sentinels to distinguish temporary absence of audio (timeout) vs. client stream end (no protocol change).
+- Per-connection socket recv timeout (1s) for responsive shutdown without affecting steady-state streaming.
+
+### Changed
+
+- Increased server listen backlog from 1 to 5 (still single-client serial handling; prepares for future multi-client work).
+- Refactored client handling into helper `handle_client` (internal only; no behavioural change).
+- README: Moved & simplified Windows GPU prerequisites section (installer-based CUDA + cuDNN; removed manual ZIP copy instructions) placed at top of Usage.
+- GPU selection: auto-detect CUDA (ctranslate2.get_cuda_device_count()>0); `USE_GPU` env deprecated/ignored; `--disable_gpu` flag forces CPU.
+- Dockerfile: now bundles minimal CUDA 12 runtime + cuDNN libs (cudart, cublas, cudnn) on python:3.12-slim for container GPU usage (requires host driver + `--gpus all`).
+- Added helper scripts: `docker_build.ps1`, `docker_run.ps1` (simple local convenience; not required in production).
+
+### Deprecated
+
+- Environment variable `USE_GPU` (replaced by automatic detection + optional `--disable_gpu`).
+
+### Removed
+
+- (none)
+
+### Fixed
+
+- (none)
+
+### Security
+
+- (none)
+
+## [1.5.1] - 2025-09-04
+
+### Added
+
+- Oversized audio packet guard (warning if single recv exceeds default 5MB; configurable via `MAX_SINGLE_RECV_BYTES`).
+- Minimal PCM chunk validation (drops trailing odd byte in packet; logs once per occurrence).
+- Environment override `PACKET_SIZE_BYTES` for receive buffer size (defaults to prior fixed 5‑minute window).
+- Sanity warning if `--min-chunk-size` exceeds internal 15s trim window (avoids silent startup delays).
+
+### Changed
+
+- Minor internal cleanup: removed unused server variables (`size`, `min_chunk`) and legacy `io` import (no functional change).
+- Added type hints for PCM decode + receive loop helper (internal only; no runtime change).
+- Build script `local_build.ps1` now single-arch by default; multi-arch requires `-MultiArch` (optional `-Push`) using buildx.
+- Run script `local_run.ps1` now aligns defaults with entrypoint and supports GPU flag, cache mount, extra env vars.
+
+### Deprecated
+
+- (none)
+
+### Removed
+
+- Dependency: `librosa` (stream ingestion now uses direct PCM16→float32 path).
+
+### Fixed
+
+- Suppressed noisy pkg_resources DeprecationWarning via optional env var (SUPPRESS_PKG_RES_WARN=0 to disable) – no runtime behavior change.
+- (Phase 5) Direct PCM16→float32 ingestion path completed; removes prior decode overhead (no protocol change).
+- `local_run.ps1` port mapping argument construction (previous inline backtick style could drop -p value in some shells).
+
+### Security
+
+- Nothing.
+
+## [1.5.0] - 2025-09-04
+
+### Added
+
+- Improved operational robustness: persistent server loop after client disconnect.
+
+### Changed
+
+- Friendlier log message for client connection resets (WinError 10054 / ECONNRESET) now reported as "Unexpected client disconnect" including peer address.
+- Audio ingestion path prepared for optimization (Phase 5): switched to direct PCM16→float32 decoding (no behavioral change to output).
+
+### Deprecated
+
+- (none)
+
+### Removed
+
+- (none)
+
+### Fixed
+
+- Server now continues listening after client disconnect (persistent accept loop).
+- Graceful Ctrl+C/SIGTERM: single final 'Server stopped gracefully' line; cleaner socket shutdown.
+- Windows Ctrl+C exit reliability (accept() timeout + corrected signal handler).
+
+### Security
+
+- Nothing.
+
+## [1.4.0] - 2025-09-04
+
+### Added
+
+- HuggingFace repo id & local filesystem path supported transparently via unified `--model` argument (in addition to builtin sizes).
+
+### Changed
+
+- Model selection consolidated: single `--model` parameter covers size/path/HF repo; logging clarified (cache directory only shown when explicitly provided).
+- Disconnect logging now includes client peer address (ip:port).
+
+### Deprecated
+
+- (none)
+
+### Removed
+
+- `--model_dir` CLI flag and related branching (superseded by consolidated `--model`).
+
+### Fixed
+
+- Minor indentation / refactor artifacts in `asr_factory` corrected (no behavioral impact).
+
+### Security
+
+- Nothing.
+
+## [1.3.0] - 2025-09-04
+
+### Added
+
+- Consolidated manual Windows test instructions into primary README (previously `TEST.md`).
+
+### Changed
+
+- Internal server simplified: removed dormant source-stream code paths (ffmpeg thread logic).
+- Docker image slimmer: dropped runtime installation of ffmpeg and netcat (external piping required).
+- Base image switched to python:3.12-slim (added libsndfile1 only).
+- Documentation: merged `TEST.md` manual guide into primary `README.md` (removed separate file for clarity).
+
+### Deprecated
+
+- (none)
+
+### Removed
+
+- `--source-stream` argument and internal ffmpeg/netcat ingestion pipeline.
+- Bundled ffmpeg and netcat from container image.
+- Offline/simulation CLI paths in `whisper_online.py` (module is now server-only support code).
+- Unused line receive helpers (`receive_one_line`, `receive_lines`) and `Connection.receive_lines` method.
+- Replaced local_build.sh / local_run.sh with Windows PowerShell scripts `local_build.ps1` and `local_run.ps1`.
+
+### Fixed
+
+- Nothing.
+
+### Security
+
+- Nothing.
+
+## [1.2.0] - 2025-09-04
+
+### Added
+
+- Developer continuation guide `INSTRUCTIONS.md`.
+- Fixed segment trimming threshold constant (15s) internal `SEGMENT_TRIM_SEC`.
+
+### Changed
+
+- CLI simplified: buffer trimming now always segment-based with fixed 15s threshold.
+- Docker image streamlined: install via `requirements.txt` only; removed unused extras (openai-whisper, tiktoken, tqdm, more-itertools, numba layers).
+- Documentation reorganized: archived original upstream READMEs under `docs/orig/` with root stub pointer.
+
+### Deprecated
+
+- (none)
+
+### Removed
+
+- CLI options `--buffer_trimming`, `--buffer_trimming_sec`.
+- Sentence trimming mode and related tokenizer logic (`create_tokenizer`, `words_to_sentences`, `chunk_completed_sentence`).
+- Tokenizer dependency chain: mosestokenizer, wtpsplit, tokenize-uk.
+- Deprecated `REPORT_LANGUAGE` environment variable from compose (use `LANGUAGE`).
+
+### Fixed
+
+- Nothing.
+
+### Security
+
+- Nothing.
+
+## [1.1.0] - 2025-09-04
+
+### Added
+
+- (internal) Refactor groundwork (cleanup branch scaffolding).
+
+### Changed
+
+- Default for `--vad` flag set to enabled (True) for local faster-whisper backend. (No protocol/output change.)
+
+### Removed
+
+- Legacy backends: `WhisperTimestampedASR`, `MLXWhisper`.
+- Silero-based VAC processing (`VACOnlineASRProcessor`) and related CLI flags `--vac`, `--vac-chunk-size`.
+- CLI flag `--report-language` (language field now derives from `--lan` with fallback to 'en').
+- CLI flag `--warmup-file` and bundled sample `samples_jfk.wav` (replaced by internal silent warm-up for local backend).
+
+### Fixed
+
+- Docker runtime script failure on Windows clones: normalize line endings & chmod entrypoint.
+
+### Security
+
+- N/A
+
+## [1.0.0] - 2025-07-15
+
+### Added
+
+- Baseline imported from commit e80686ec07db213bdb3fcabcb7092b3e27e22bf5 of the original implementation ("Fixed gpu support and updated README (#2)").
+
+### Notes
+
+- This provisional version mirrors upstream without local modifications.
+
+---
+
+### Release Process (internal guidelines)
+
+1. Update "Unreleased" section: move relevant entries under a new version heading with date (YYYY-MM-DD).
+2. Keep category subsections even if empty during drafting; prune empty ones on release.
+3. Ensure all external changes reference an issue / PR number when available (e.g. `(#42)`).
+4. After tagging, add comparison links at bottom.
+
+### Categories Legend
+
+Use: Added, Changed, Deprecated, Removed, Fixed, Security.
+
+## Link References
+
+[Unreleased]: https://github.com/stian-aventia/whisper_streaming/compare/v1.6.0...HEAD
+[1.6.0]: https://github.com/stian-aventia/whisper_streaming/compare/v1.5.1...v1.6.0
+[1.5.1]: https://github.com/stian-aventia/whisper_streaming/compare/v1.5.0...v1.5.1
+[1.5.0]: https://github.com/stian-aventia/whisper_streaming/compare/v1.4.0...v1.5.0
+[1.4.0]: https://github.com/stian-aventia/whisper_streaming/compare/v1.3.0...v1.4.0
+[1.3.0]: https://github.com/stian-aventia/whisper_streaming/compare/v1.2.0...v1.3.0
+[1.2.0]: https://github.com/stian-aventia/whisper_streaming/compare/v1.1.0...v1.2.0
+[1.1.0]: https://github.com/stian-aventia/whisper_streaming/compare/v1.0.0...v1.1.0
+[1.0.0]: https://github.com/ufal/whisper_streaming/tree/e80686ec07db213bdb3fcabcb7092b3e27e22bf5

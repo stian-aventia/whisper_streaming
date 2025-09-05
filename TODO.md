@@ -140,10 +140,15 @@ Phase 4 core items completed.
 
 ## Phase 6: Server Loop Hygiene
 
-- [ ] Clarify receive loop semantics: distinguish "no data yet" vs "stream ended" return values.
-- [ ] Add socket timeout (e.g. 30s) to avoid hanging connections.
-- [ ] Increase `listen()` backlog (e.g. 5) for modest concurrency (still serial handling unless threaded later).
-- [ ] Prepare hooks for optional future multi-client handling (no implementation yet).
+- [x] Clarify receive loop semantics: distinguish "no data yet" vs "stream ended" (sentinels `NO_DATA_YET` / `STREAM_ENDED`).
+- [x] Add per-connection socket recv timeout (implemented 1.0s instead of example 30s; purpose: responsiveness for shutdown, not inactivity cutoff).
+- [x] Increase `listen()` backlog to 5 (still single-client serial processing).
+- [x] Prepare hooks for optional future multi-client handling (`handle_client` wrapper; no concurrency primitives added).
+
+Notes:
+
+- Timeout is NOT an inactivity termination; it only wakes the loop to check signals.
+- No change to output protocol, trimming window, or JSON field ordering.
 
 ## Phase 7: Internal Cleanup
 

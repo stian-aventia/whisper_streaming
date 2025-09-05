@@ -11,7 +11,13 @@ https://github.com/ufal/whisper_streaming
 
 ### Added
 
+- Internal receive loop sentinels to distinguish temporary absence of audio (timeout) vs. client stream end (no protocol change).
+- Per-connection socket recv timeout (1s) for responsive shutdown without affecting steady-state streaming.
+
 ### Changed
+
+/- Increased server listen backlog from 1 to 5 (still single-client serial handling; prepares for future multi-client work).
+/- Refactored client handling into helper `handle_client` (internal only; no behavioural change).
 
 ### Deprecated
 

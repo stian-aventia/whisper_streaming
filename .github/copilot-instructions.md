@@ -1,90 +1,108 @@
-# Copilot Instructions
+## Copilot Instructions (Essential Guardrails)
 
-Purpose: Guide AI code assistants to make safe, minimal, high‑value changes without breaking the frozen external protocol.
+This project has a frozen external interface. Assistants MUST respect the invariants below and defer to authoritative sources for anything dynamic.
 
-## Immutable External Contract
+### 1. Always Read These First
 
-- Output = newline‑delimited JSON objects. Field names, order, spelling, and timing semantics MUST NOT change.
-- Segment trimming window fixed internally at 15s (do not expose a flag or change constant unless explicitly asked).
-- Accepts raw 16 kHz mono PCM16LE audio over TCP (server only). No embedded ffmpeg ingest; any media pull happens outside.
+Before proposing or making any change, consult:
 
-## Current Scope / Completed
+1. `README.md` (usage, env vars, protocol description)
+2. `CHANGELOG.md` (Unreleased section for pending work)
+3. `TODO.md` (current roadmap / open phases)
 
-- Removed: sentence tokenizer mode, offline simulation, internal source-stream ingestion, ffmpeg & netcat runtime deps, unused line receive helpers.
-- Backends supported: `faster-whisper`, `openai-api`.
-- Warm-up silence still performed for local model to mitigate first-latency.
+Do not rely on stale assumptions inside this file for project status—those three documents are the source of truth for evolving tasks.
 
-## Near-Term (Phase 4 Targets)
+### 2. Hard Invariants (Do NOT break)
 
-1. Consolidate model params: `--model_dir` removed; only `--model` (builtin size, local path, or HF repo id) plus optional `--model_cache_dir`.
-2. Server robustness: keep listening after client disconnect (loop accept again) until explicit shutdown.
-3. Graceful Ctrl+C: clean socket close, deterministic final log line.
+| Area             | Rule                                                                                                                                     |
+| ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| Output protocol  | One JSON object per line, keys in order: `language`, `start`, `end`, `text`. No new keys, no reordering, no whitespace guarantees added. |
+| Timing semantics | Segment trimming window is a fixed internal constant (15s). Never expose or change it without explicit instruction.                      |
+| Input format     | Only raw 16 kHz mono PCM16LE over TCP. No embedded media pulling, transcoding, or ffmpeg integration.                                    |
+| Warm-up          | Local model silent warm-up stays enabled (improves first latency). Do not remove or disable.                                             |
+| Dependencies     | Do NOT reintroduce removed tokenizer stack or ffmpeg/netcat. Avoid heavy new deps.                                                       |
+| Logging          | No noisy debug by default; INFO-level additions must not flood output.                                                                   |
+| Threading        | No new concurrency primitives unless explicitly requested.                                                                               |
+| Trimming         | Only segment-based logic; no sentence/tokenizer mode revival.                                                                            |
+| Env surface      | Prefer existing env vars; new ones require justification & CHANGELOG/TODO updates.                                                       |
 
-## Mid-Term (Later Phases – DO NOT START UNPROMPTED)
+### 3. Change Discipline
 
-- PCM ingestion optimization (replace librosa/soundfile path with direct numpy frombuffer).
-- Receive loop hygiene (timeouts, backlog, clearer semantics, optional multi-client prep).
-- Internal cleanup (remove globals, add typing, lazy imports).
-- Lightweight smoke test + basic metrics logging.
-- Documentation refresh & eventual removal of temporary setuptools<81 pin once upstream fixed.
+- Make minimal, focused diffs (one concern per commit).
+- If a change affects ingest, buffering, or transcript ordering, STOP and request confirmation.
+- Update both `CHANGELOG.md` (Unreleased) and `TODO.md` when completing or adding scoped work.
+- Preserve CLI argument semantics; adding or removing flags requires explicit approval.
 
-## Coding Principles
-
-- Small, focused diffs; never mix refactor + behavior change.
-- Update BOTH `CHANGELOG.md` (Unreleased) and `TODO.md` when completing a planned item.
-- Preserve public CLI argument behavior unless change is explicitly in scope.
-- Avoid introducing new heavy dependencies; prefer stdlib or existing libs.
-- No silent output format tweaks (even reordering JSON keys is forbidden).
-
-## Commit Message Style
+### 4. Commit Message Format
 
 `<type>(<area>): <concise summary>`
 Types: feat, refactor, perf, fix, chore, docs.
 Examples:
 
-- refactor(model): remove --model_dir flag and related branching
-- feat(server): keep accepting new clients after disconnect
-- fix(shutdown): ensure graceful SIGINT closes socket
+- perf(ingest): reduce extra copy in PCM conversion
+- fix(server): preserve accept loop after client reset
+- docs(readme): clarify raw PCM input format
 
-## Safety Checklist (Before Merging Changes)
+### 5. Safety Checklist Before Merge
 
-- Grep for removed symbol usages (e.g., if dropping a flag) to ensure no leftovers.
-- Run container locally with small model to confirm startup + first transcription.
-- Compare a short baseline transcript (text only) if touching ASR path – must match exactly.
+1. Grep / search for removed symbols (avoid stragglers).
+2. Local run with a tiny model: confirm starts, warm-up log, first transcript line appears.
+3. If ASR pathway touched: compare a baseline short sample—transcripts must be identical (text + ordering).
+4. Confirm JSON line ordering unchanged (spot check one output line).
+5. Ensure `CHANGELOG.md` Unreleased updated; no unrelated noise in diff.
 
-## Implementation Hints
+### 6. Environment Variables (Reference Only)
 
-- Model consolidation: map old `--model_dir` logic into direct pass-through; if both provided, prefer `--model` and log warning until `--model_dir` removed.
-- Listener persistence: wrap accept+serve in while running loop; on client disconnect, continue; only break on global shutdown flag.
-- Ctrl+C: register signal handler setting a flag; ensure server socket closed once; avoid broad except; flush final log.
+See `README.md` for authoritative list. Common ones: `MODEL`, `MODEL_CACHE_DIR`, `BACKEND`, `LANGUAGE`, `LOG_LEVEL`, `MIN_CHUNK_SIZE`, `SAMPLING_RATE`, `USE_GPU`, `MAX_SINGLE_RECV_BYTES`, `PACKET_SIZE_BYTES`, `SUPPRESS_PKG_RES_WARN`.
+Do not silently repurpose an existing variable.
 
-## Things NOT To Do
+### 7. What NOT To Do (Without Explicit Request)
 
-- Do not reintroduce sentence/tokenizer dependencies.
-- Do not add ffmpeg or netcat back into the image.
-- Do not change trimming constant or expose new trimming flags.
-- Do not alter JSON ordering, keys, or add new fields.
-- Do not introduce threads unless explicitly requested (keep simplicity).
+- Add new JSON fields or reorder existing ones.
+- Expose or modify the 15s trim constant.
+- Reintroduce sentence/tokenizer or offline simulation modes.
+- Embed ffmpeg / pulling media internally.
+- Introduce threads, async refactors, or multi-client concurrency logic.
+- Downgrade or remove warm-up.
 
-## Preferred Order When Asked For Phase 4
+### 8. Escalation Triggers
 
-1. Add transitional handling (accept --model_dir but deprecate) – update docs.
-2. Implement persistent server accept loop.
-3. Improve SIGINT shutdown.
-4. Remove deprecated flag in a follow-up commit (if user confirms).
+Immediately ask for confirmation if work might:
 
-## Observability (Optional, Only If Requested)
+- Alter transcript timing, segmentation, or ordering.
+- Change memory footprint of the rolling 15s window.
+- Add dependencies > a few MB (wheel size) or require system packages.
+- Modify env/CLI surface externally consumed.
 
-- Log: model load duration, average processing latency (rolling mean) – behind a simple env flag.
+### 9. Fast Triage Guidance
 
-## Temporary Pins / Follow-ups
+| Symptom         | Usual Cause                              | Quick Check                              |
+| --------------- | ---------------------------------------- | ---------------------------------------- |
+| No transcripts  | MIN_CHUNK_SIZE too large or silent input | Lower MIN_CHUNK_SIZE / verify bytes flow |
+| First line slow | Warm-up missing                          | Confirm warm-up log line                 |
+| Large memory    | Trim window altered or leak              | Verify constant still 15s                |
+| High CPU        | Extra copies in ingest                   | Inspect PCM conversion path              |
 
-- setuptools<81 pinned due to ctranslate2/pkg_resources deprecation path; remove once upstream resolves. Track in `TODO.md`.
+### 10. Release Hygiene
 
-## Escalation
+When finalizing a release:
 
-If a change might affect transcript timing or ordering, stop and request explicit confirmation before proceeding.
+1. Move Unreleased entries into a dated version block.
+2. Reset Unreleased headings.
+3. Tag + push; optional release notes file can mirror CHANGELOG section.
+
+### 11. Source of Truth for Roadmap
+
+Roadmap & open tasks intentionally live ONLY in `TODO.md`. Do not duplicate phase lists here; just reference them when needed.
+
+### 12. Minimal Assistant Startup Routine
+
+On new session:
+
+1. Read `README.md`, `CHANGELOG.md` (Unreleased), `TODO.md`.
+2. List invariants (section 2) mentally before editing.
+3. Apply smallest diff; run safety checklist.
 
 ---
 
-This file is authoritative for AI assistants; keep it updated when constraints or phases change.
+This document is intentionally lean: it encodes the non-negotiable guardrails. Dynamic status lives in README / CHANGELOG / TODO.
